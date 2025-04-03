@@ -1,0 +1,29 @@
+{
+	"name": "learning-management-system",
+	"version": "1.0.0",
+	"description": "A comprehensive learning management system",
+	"main": "src/app.js",
+	"scripts": {
+		"start": "node src/app.js",
+		"dev": "nodemon src/app.js",
+		"test": "jest",
+		"migrate": "node src/db/migrations/run.js",
+		"seed": "node src/db/seeds/run.js"
+	},
+	"dependencies": {
+		"bcryptjs": "^2.4.3",
+		"cors": "^2.8.5",
+		"dotenv": "^10.0.0",
+		"express": "^4.17.1",
+		"helmet": "^4.6.0",
+		"jsonwebtoken": "^9.0.0",
+		"morgan": "^1.10.0",
+		"pg": "^8.7.1",
+		"uuid": "^8.3.2"
+	},
+	"devDependencies": {
+		"jest": "^27.4.5",
+		"nodemon": "^2.0.15",
+		"supertest": "^6.1.6"
+	}
+}
