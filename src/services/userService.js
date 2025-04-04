@@ -1,5 +1,5 @@
-const bcrypt = require("bcryptjs");
-const User = require("../models/userModel");
+import bcrypt from "bcryptjs";
+import User from "../models/userModel.js";
 
 class UserService {
 	static async getUserProfile(userId) {
@@ -164,4 +164,4 @@ class UserService {
 	}
 }
 
-module.exports = UserService;
+export default UserService;

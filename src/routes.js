@@ -1,18 +1,18 @@
 // src/routes.js
-const express = require("express");
-const AuthController = require("./controllers/AuthController");
-const UserController = require("./controllers/UserController");
-const ClientController = require("./controllers/ClientController");
-const ContentController = require("./controllers/ContentController");
-const EnrollmentController = require("./controllers/EnrollmentController");
-const { default: CourseController } = require("./controllers/courseController");
-const {
-	authenticate,
-	isSystemAdmin,
-	hasRole,
-	canAccessCourse,
-	canEditCourse,
-} = require("./middleware/AuthMiddleware");
+// const express = require("express");
+import AuthController from "./controllers/AuthController.js";
+import UserController from "./controllers/UserController.js";
+import ClientController from "./controllers/ClientController.js";
+import ContentController from "./controllers/ContentController.js";
+import EnrollmentController from "./controllers/EnrollmentController.js";
+import CourseController from "./controllers/courseController.js";
+
+import express from "express";
+
+import AuthMiddleware from "./middleware/AuthMiddleware.js";
+
+const { authenticate, isSystemAdmin, hasRole, canAccessCourse, canEditCourse } =
+	AuthMiddleware;
 
 const router = express.Router();
 
@@ -195,4 +195,4 @@ router.get(
 	EnrollmentController.getUserProgress
 );
 
-module.exports = router;
+export default router;

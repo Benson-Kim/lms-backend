@@ -1,4 +1,4 @@
-const Client = require("../models/clientModel");
+import Client from "../models/clientModel.js";
 
 class ClientService {
 	static async createClient(clientData) {
@@ -130,4 +130,4 @@ class ClientService {
 	}
 }
 
-module.exports = ClientService;
+export default ClientService;

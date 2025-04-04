@@ -1,5 +1,6 @@
-const jwt = require("jsonwebtoken");
-const AuthService = require("../services/AuthService");
+// src/middleware/AuthMiddleware.js
+import jwt from "jsonwebtoken";
+import AuthService from "../services/AuthService.js";
 
 /**
  * Middleware to protect routes that require authentication
@@ -233,7 +234,7 @@ const canEditCourse = async (req, res, next) => {
 	}
 };
 
-module.exports = {
+export default {
 	authenticate,
 	hasRole,
 	isSystemAdmin,

@@ -1,21 +1,24 @@
-import {
+import CourseService from "../services/courseService.js";
+import enrollmentService from "../services/enrollmentService.js";
+import contentService from "../services/contentService.js";
+
+const {
 	searchCourses,
 	getUserCourses,
-	getCourse as _getCourse,
-	createCourse as _createCourse,
-	updateCourse as _updateCourse,
-	deleteCourse as _deleteCourse,
-	addModule as _addModule,
-} from "../services/courseService";
-import {
+	getCourse: _getCourse,
+	createCourse: _createCourse,
+	updateCourse: _updateCourse,
+	deleteCourse: _deleteCourse,
+	addModule: _addModule,
+} = CourseService;
+
+const {
 	enrollUser,
 	updateProgress,
-	getCourseStats as _getCourseStats,
-} from "../services/enrollmentService";
-import {
-	createContentItem,
-	submitQuizAttempt,
-} from "../services/contentService";
+	getCourseStats: _getCourseStats,
+} = enrollmentService;
+
+const { createContentItem, submitQuizAttempt } = contentService;
 
 class CourseController {
 	/**

@@ -1,4 +1,4 @@
-const EnrollmentService = require("../services/enrollmentService");
+import EnrollmentService from "../services/enrollmentService.js";
 
 class EnrollmentController {
 	static async enrollUser(req, res) {
@@ -149,4 +149,4 @@ class EnrollmentController {
 	}
 }
 
-module.exports = EnrollmentController;
+export default EnrollmentController;

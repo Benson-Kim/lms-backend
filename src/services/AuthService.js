@@ -1,6 +1,6 @@
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
-const User = require("../models/userModel");
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import User from "../models/userModel.js";
 
 class AuthService {
 	static async login(email, password) {
@@ -178,4 +178,4 @@ class AuthService {
 	}
 }
 
-module.exports = AuthService;
+export default AuthService;

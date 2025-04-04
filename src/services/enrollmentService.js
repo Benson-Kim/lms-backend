@@ -1,5 +1,5 @@
-const Enrollment = require("../models/enrollmentModel");
-const CourseService = require("./courseService");
+import Enrollment from "../models/enrollmentModel.js";
+import CourseService from "./courseService.js";
 
 class EnrollmentService {
 	static async enrollUser(userId, courseId) {
@@ -122,4 +122,4 @@ class EnrollmentService {
 	}
 }
 
-module.exports = EnrollmentService;
+export default EnrollmentService;

@@ -1,4 +1,4 @@
-const ContentService = require("../services/contentService");
+import ContentService from "../services/contentService.js";
 
 class ContentController {
 	static async createContentItem(req, res) {
@@ -164,4 +164,4 @@ class ContentController {
 	}
 }
 
-module.exports = ContentController;
+export default ContentController;
