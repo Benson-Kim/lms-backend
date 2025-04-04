@@ -12,11 +12,22 @@ class AuthController {
 					.json({ error: "Email and password are required" });
 			}
 
-			const result = await AuthService.login(email, password);
+			const ipAddress = req.ip || req.connection.remoteAddress;
+
+			const result = await AuthService.login(email, password, ipAddress);
 
 			return res.json(result);
 		} catch (error) {
 			console.error("Login error:", error);
+
+			// Special handling for account lockout
+			if (error.message.includes("Account temporarily locked")) {
+				return res.status(429).json({
+					error: error.message,
+					lockout: true,
+				});
+			}
+
 			return res
 				.status(401)
 				.json({ error: error.message || "Invalid credentials" });
@@ -58,6 +69,21 @@ class AuthController {
 		}
 	}
 
+	static async logoutAll(req, res) {
+		try {
+			const userId = req.userId;
+
+			await AuthService.logoutFromAllDevices(userId);
+
+			return res.json({ message: "Logged out from all devices successfully" });
+		} catch (error) {
+			console.error("Logout all error:", error);
+			return res
+				.status(500)
+				.json({ error: "Failed to logout from all devices" });
+		}
+	}
+
 	static async forgotPassword(req, res) {
 		try {
 			const { email } = req.body;
@@ -77,7 +103,12 @@ class AuthController {
 			});
 		} catch (error) {
 			console.error("Forgot password error:", error);
-			return res.status(500).json({ error: "Failed to process request" });
+			// Return success to prevent email enumeration
+			return res.json({
+				message:
+					"If your email is registered, you will receive a password reset link",
+				success: true,
+			});
 		}
 	}
 
@@ -96,9 +127,34 @@ class AuthController {
 			return res.json({ message: "Password reset successfully" });
 		} catch (error) {
 			console.error("Reset password error:", error);
+			// Different error message for password strength issues
+			if (error.message.includes("Password must be")) {
+				return res.status(400).json({
+					error: error.message,
+					passwordRequirements: true,
+				});
+			}
 			return res
 				.status(400)
 				.json({ error: error.message || "Failed to reset password" });
+		}
+	}
+
+	static async verifyResetToken(req, res) {
+		try {
+			const { token } = req.params;
+
+			if (!token) {
+				return res.status(400).json({ error: "Token is required" });
+			}
+
+			// Just verify the token is valid, we don't need to do anything with it
+			await AuthService.verifyResetToken(token);
+
+			return res.json({ valid: true });
+		} catch (error) {
+			console.error("Token verification error:", error);
+			return res.status(400).json({ valid: false });
 		}
 	}
 }

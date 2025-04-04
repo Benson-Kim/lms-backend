@@ -240,6 +240,24 @@ class Course {
 		return courseCheck.rows.length > 0;
 	}
 
+	static async userCanAccessOwnerContent(ownerType, ownerId, userId) {
+		const adminCheck = await pool.query(
+			"SELECT 1 FROM users WHERE id = $1 AND is_system_admin = true",
+			[userId]
+		);
+
+		if (adminCheck.rows.length > 0) {
+			return true;
+		}
+
+		const roleCheck = await pool.query(
+			"SELECT 1 FROM user_roles WHERE user_id = $1 AND entity_type = $2 AND entity_id = $3 AND status = 'active' AND role IN ('admin', 'instructor')",
+			[userId, ownerType, ownerId]
+		);
+
+		return roleCheck.rows.length > 0;
+	}
+
 	static async userCanEdit(courseId, userId) {
 		// Check if user is system admin
 		const adminCheck = await pool.query(
@@ -414,6 +432,55 @@ class Course {
 		filters.userId = userId;
 
 		return this.findAll(filters);
+	}
+
+	// Add these methods to the Course class in src/models/courseModel.js
+
+	static async getMostEnrolledCourses(limit = 5) {
+		const query = `
+    SELECT c.*, 
+      CASE 
+        WHEN c.owner_type = 'client' THEN cl.name
+        WHEN c.owner_type = 'department' THEN d.name
+        WHEN c.owner_type = 'user' THEN CONCAT(u.first_name, ' ', u.last_name)
+        ELSE 'System'
+      END as owner_name,
+      COUNT(e.id) as enrollment_count
+    FROM courses c
+    LEFT JOIN clients cl ON c.owner_type = 'client' AND c.owner_id = cl.id
+    LEFT JOIN departments d ON c.owner_type = 'department' AND c.owner_id = d.id
+    LEFT JOIN users u ON c.owner_type = 'user' AND c.owner_id = u.id
+    LEFT JOIN enrollments e ON c.id = e.course_id AND e.status != 'dropped'
+    WHERE c.is_public = true
+    GROUP BY c.id, cl.name, d.name, u.first_name, u.last_name
+    ORDER BY enrollment_count DESC
+    LIMIT $1
+  `;
+
+		const result = await pool.query(query, [limit]);
+		return result.rows;
+	}
+
+	static async getRecentCourses(limit = 5) {
+		const query = `
+    SELECT c.*, 
+      CASE 
+        WHEN c.owner_type = 'client' THEN cl.name
+        WHEN c.owner_type = 'department' THEN d.name
+        WHEN c.owner_type = 'user' THEN CONCAT(u.first_name, ' ', u.last_name)
+        ELSE 'System'
+      END as owner_name
+    FROM courses c
+    LEFT JOIN clients cl ON c.owner_type = 'client' AND c.owner_id = cl.id
+    LEFT JOIN departments d ON c.owner_type = 'department' AND c.owner_id = d.id
+    LEFT JOIN users u ON c.owner_type = 'user' AND c.owner_id = u.id
+    WHERE c.is_public = true
+    ORDER BY c.created_at DESC
+    LIMIT $1
+  `;
+
+		const result = await pool.query(query, [limit]);
+		return result.rows;
 	}
 }
 

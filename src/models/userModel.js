@@ -9,6 +9,14 @@ class User {
 		return result.rows[0];
 	}
 
+	static async findByIdWithPassword(id) {
+		const result = await pool.query(
+			"SELECT id, email, password, first_name, last_name, profile_image, is_system_admin, is_individual_learner FROM users WHERE id = $1",
+			[id]
+		);
+		return result.rows[0];
+	}
+
 	static async findByEmail(email) {
 		const result = await pool.query(
 			"SELECT id, email, password, first_name, last_name, profile_image, is_system_admin, is_individual_learner FROM users WHERE email = $1",
@@ -56,6 +64,15 @@ class User {
        WHERE id = $4
        RETURNING id, email, first_name, last_name, profile_image, is_system_admin, is_individual_learner`,
 			[firstName, lastName, profileImage, id]
+		);
+
+		return result.rows[0];
+	}
+
+	static async updatePassword(id, hashedPassword) {
+		const result = await pool.query(
+			"UPDATE users SET password = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING id",
+			[hashedPassword, id]
 		);
 
 		return result.rows[0];
@@ -117,6 +134,62 @@ class User {
 		);
 
 		return result.rows[0];
+	}
+
+	static async searchUsers(searchTerm, limit = 10) {
+		const query = `
+      SELECT id, email, first_name, last_name, profile_image
+      FROM users
+      WHERE 
+        email ILIKE $1 OR
+        first_name ILIKE $1 OR
+        last_name ILIKE $1
+      LIMIT $2
+    `;
+
+		const result = await pool.query(query, [`%${searchTerm}%`, limit]);
+		return result.rows;
+	}
+
+	static async getUsersByEntity(entityType, entityId, role = null) {
+		let query = `
+      SELECT u.id, u.email, u.first_name, u.last_name, u.profile_image, ur.role
+      FROM users u
+      JOIN user_roles ur ON u.id = ur.user_id
+      WHERE ur.entity_type = $1 AND ur.entity_id = $2 AND ur.status = 'active'
+    `;
+
+		const params = [entityType, entityId];
+
+		if (role) {
+			query += " AND ur.role = $3";
+			params.push(role);
+		}
+
+		const result = await pool.query(query, params);
+		return result.rows;
+	}
+
+	static async checkEntityExists(entityType, entityId) {
+		let table;
+		switch (entityType) {
+			case "client":
+				table = "clients";
+				break;
+			case "department":
+				table = "departments";
+				break;
+			case "group":
+				table = "groups";
+				break;
+			default:
+				throw new Error(`Invalid entity type: ${entityType}`);
+		}
+
+		const result = await pool.query(`SELECT id FROM ${table} WHERE id = $1`, [
+			entityId,
+		]);
+		return result.rows.length > 0;
 	}
 }
 
