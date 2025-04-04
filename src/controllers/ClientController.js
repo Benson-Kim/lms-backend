@@ -181,6 +181,96 @@ class ClientController {
 			});
 		}
 	}
+
+	static async addUserToClient(req, res) {
+		try {
+			const { clientId } = req.params;
+			const { userId, role } = req.body;
+
+			if (!userId || !role) {
+				return res.status(400).json({
+					success: false,
+					message: "User ID and role are required",
+				});
+			}
+
+			const userRole = await ClientService.addUserToClient(
+				clientId,
+				userId,
+				role
+			);
+
+			return res.status(201).json({
+				success: true,
+				data: userRole,
+			});
+		} catch (error) {
+			return res.status(400).json({
+				success: false,
+				message: error.message,
+			});
+		}
+	}
+
+	static async addUserToDepartment(req, res) {
+		try {
+			const { departmentId } = req.params;
+			const { userId, role } = req.body;
+
+			if (!userId || !role) {
+				return res.status(400).json({
+					success: false,
+					message: "User ID and role are required",
+				});
+			}
+
+			const userRole = await ClientService.addUserToDepartment(
+				departmentId,
+				userId,
+				role
+			);
+
+			return res.status(201).json({
+				success: true,
+				data: userRole,
+			});
+		} catch (error) {
+			return res.status(400).json({
+				success: false,
+				message: error.message,
+			});
+		}
+	}
+
+	static async addUserToGroup(req, res) {
+		try {
+			const { groupId } = req.params;
+			const { userId, role } = req.body;
+
+			if (!userId || !role) {
+				return res.status(400).json({
+					success: false,
+					message: "User ID and role are required",
+				});
+			}
+
+			const userRole = await ClientService.addUserToGroup(
+				groupId,
+				userId,
+				role
+			);
+
+			return res.status(201).json({
+				success: true,
+				data: userRole,
+			});
+		} catch (error) {
+			return res.status(400).json({
+				success: false,
+				message: error.message,
+			});
+		}
+	}
 }
 
 export default ClientController;

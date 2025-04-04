@@ -127,15 +127,17 @@ class CourseService {
 	}
 
 	static async getPopularCourses(limit = 5) {
-		// This would require a new query in the Course model
-		// Implementation depends on how "popularity" is defined
-		// For now, we'll assume it's based on enrollment count
+		// Course popularity:  based on enrollment count
 		return Course.getMostEnrolledCourses(limit);
 	}
 
 	static async getRecentCourses(limit = 5) {
 		// Get most recently created courses
 		return Course.getRecentCourses(limit);
+	}
+
+	static async userCanAccessOwnerContent(ownerType, ownerId, userId) {
+		return Course.userCanAccessOwnerContent(ownerType, ownerId, userId);
 	}
 }
 

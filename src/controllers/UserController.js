@@ -22,6 +22,8 @@ class UserController {
 			// Don't allow updating password or system admin status through this endpoint
 			delete profileData.password;
 			delete profileData.is_system_admin;
+			delete profileData.isSystemAdmin;
+			delete profileData.email; // Prevent email changes through this endpoint
 
 			const updatedProfile = await UserService.updateUserProfile(
 				userId,
@@ -63,15 +65,17 @@ class UserController {
 		try {
 			const userData = req.body;
 
-			if (
-				!userData.email ||
-				!userData.password ||
-				!userData.first_name ||
-				!userData.last_name
-			) {
-				return res.status(400).json({
-					error: "Email, password, first name, and last name are required",
-				});
+			// Map from API naming to internal naming if needed
+			if (userData.first_name && !userData.firstName) {
+				userData.firstName = userData.first_name;
+			}
+
+			if (userData.last_name && !userData.lastName) {
+				userData.lastName = userData.last_name;
+			}
+
+			if (userData.profile_image && !userData.profileImage) {
+				userData.profileImage = userData.profile_image;
 			}
 
 			const newUser = await UserService.createUser(userData);
@@ -95,6 +99,10 @@ class UserController {
 				});
 			}
 
+			// Check if the requesting user has permission to assign roles
+			// This would typically check if the user is an admin of the entity
+			// Implementation depends on your authentication middleware
+
 			const result = await UserService.assignRole(
 				userId,
 				entityType,
@@ -102,7 +110,10 @@ class UserController {
 				role
 			);
 
-			return res.json(result);
+			return res.json({
+				message: "Role assigned successfully",
+				roleInfo: result,
+			});
 		} catch (error) {
 			console.error("Assign role error:", error);
 			return res
@@ -120,6 +131,8 @@ class UserController {
 					error: "User ID, entity type, entity ID, and role are required",
 				});
 			}
+
+			// Similar permission check as in assignRole would be needed here
 
 			await UserService.removeRole(userId, entityType, entityId, role);
 
@@ -146,6 +159,31 @@ class UserController {
 		} catch (error) {
 			console.error("Search users error:", error);
 			return res.status(500).json({ error: "Failed to search users" });
+		}
+	}
+
+	static async getUsersByEntity(req, res) {
+		try {
+			const { entityType, entityId, role } = req.query;
+
+			if (!entityType || !entityId) {
+				return res.status(400).json({
+					error: "Entity type and entity ID are required",
+				});
+			}
+
+			const users = await UserService.getUsersByEntity(
+				entityType,
+				entityId,
+				role
+			);
+
+			return res.json(users);
+		} catch (error) {
+			console.error("Get users by entity error:", error);
+			return res
+				.status(400)
+				.json({ error: error.message || "Failed to get users" });
 		}
 	}
 }

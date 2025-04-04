@@ -2,11 +2,11 @@
 	"name": "learning-management-system",
 	"version": "1.0.0",
 	"description": "A comprehensive learning management system",
-	"main": "src/app.js",
+	"main": "src/server.js",
 	"type": "module",
 	"scripts": {
-		"start": "node --experimental-specifier-resolution=node src/app.js",
-		"dev": "nodemon --experimental-specifier-resolution=node src/app.js",
+		"start": "node --experimental-specifier-resolution=node src/server.js",
+		"dev": "nodemon --experimental-specifier-resolution=node src/server.js",
 		"test": "jest",
 		"migrate": "node --experimental-specifier-resolution=node src/db/migrations/run.js",
 		"seed": "node --experimental-specifier-resolution=node src/db/seeds/run.js"

@@ -35,6 +35,13 @@ class ClientService {
 	}
 
 	static async updateClient(clientId, clientData) {
+		// Check if client exists
+		const client = await Client.findById(clientId);
+
+		if (!client) {
+			throw new Error("Client not found");
+		}
+
 		const updatedClient = await Client.update(clientId, clientData);
 
 		if (!updatedClient) {
@@ -57,6 +64,7 @@ class ClientService {
 			throw new Error("Department name is required");
 		}
 
+		// Add client_id to department data
 		departmentData.client_id = clientId;
 
 		return Client.createDepartment(departmentData);
@@ -95,6 +103,7 @@ class ClientService {
 			throw new Error("Group name is required");
 		}
 
+		// Add department_id and client_id to group data
 		groupData.department_id = departmentId;
 		groupData.client_id = department.client_id;
 
@@ -122,11 +131,81 @@ class ClientService {
 	}
 
 	static async deactivateClient(clientId) {
-		return Client.update(clientId, { is_active: false });
+		// Check if client exists
+		const client = await Client.findById(clientId);
+
+		if (!client) {
+			throw new Error("Client not found");
+		}
+
+		if (!client.is_active) {
+			throw new Error("Client is already inactive");
+		}
+
+		return Client.update(clientId, { isActive: false });
 	}
 
 	static async activateClient(clientId) {
-		return Client.update(clientId, { is_active: true });
+		// Check if client exists
+		const client = await Client.findById(clientId);
+
+		if (!client) {
+			throw new Error("Client not found");
+		}
+
+		if (client.is_active) {
+			throw new Error("Client is already active");
+		}
+
+		return Client.update(clientId, { isActive: true });
+	}
+
+	static async addUserToClient(clientId, userId, role) {
+		// Check if client exists
+		const client = await Client.findById(clientId);
+
+		if (!client) {
+			throw new Error("Client not found");
+		}
+
+		// Validate role
+		if (!["admin", "instructor", "student", "member"].includes(role)) {
+			throw new Error("Invalid role");
+		}
+
+		return Client.addUserRole(userId, "client", clientId, role);
+	}
+
+	static async addUserToDepartment(departmentId, userId, role) {
+		// Check if department exists
+		const department = await Client.getDepartmentById(departmentId);
+
+		if (!department) {
+			throw new Error("Department not found");
+		}
+
+		// Validate role
+		if (!["admin", "instructor", "student", "member"].includes(role)) {
+			throw new Error("Invalid role");
+		}
+
+		return Client.addUserRole(userId, "department", departmentId, role);
+	}
+
+	static async addUserToGroup(groupId, userId, role) {
+		// Check if group exists
+		const group = await Client.getGroupById(groupId);
+
+		if (!group) {
+			throw new Error("Group not found");
+		}
+
+		// Validate role
+		if (!["admin", "instructor", "student", "member"].includes(role)) {
+			throw new Error("Invalid role");
+		}
+
+		return Client.addUserRole(userId, "group", groupId, role);
 	}
 }
 

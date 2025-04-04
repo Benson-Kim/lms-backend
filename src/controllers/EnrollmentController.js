@@ -128,12 +128,12 @@ class EnrollmentController {
 	static async getEnrollmentById(req, res) {
 		try {
 			const { enrollmentId } = req.params;
+			const userId = req.user.id;
 
-			// Check if the enrollment belongs to the user or user has admin access
-			// This would typically involve checking user permissions
-
+			// Pass the requesting user ID for permission check
 			const enrollment = await EnrollmentService.getEnrollmentById(
-				enrollmentId
+				enrollmentId,
+				userId
 			);
 
 			return res.status(200).json({
@@ -142,6 +142,32 @@ class EnrollmentController {
 			});
 		} catch (error) {
 			return res.status(404).json({
+				success: false,
+				message: error.message,
+			});
+		}
+	}
+
+	static async bulkEnroll(req, res) {
+		try {
+			const { courseId } = req.params;
+			const { userIds } = req.body;
+
+			if (!Array.isArray(userIds) || userIds.length === 0) {
+				return res.status(400).json({
+					success: false,
+					message: "User IDs array is required",
+				});
+			}
+
+			const results = await EnrollmentService.bulkEnroll(courseId, userIds);
+
+			return res.status(200).json({
+				success: true,
+				data: results,
+			});
+		} catch (error) {
+			return res.status(500).json({
 				success: false,
 				message: error.message,
 			});
