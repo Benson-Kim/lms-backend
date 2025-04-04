@@ -1,5 +1,5 @@
-const { pool } = require("../config/database");
-const bcrypt = require("bcryptjs");
+import pool from "../config/database.js";
+import bcrypt from "bcryptjs";
 
 class Auth {
 	static async verifyCredentials(email, password) {
@@ -110,4 +110,4 @@ class Auth {
 	}
 }
 
-module.exports = Auth;
+export default Auth;

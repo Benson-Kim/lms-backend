@@ -1,4 +1,4 @@
-const Course = require("../models/courseModel");
+import Course from "../models/courseModel.js";
 
 class CourseService {
 	static async createCourse(courseData) {
@@ -109,4 +109,4 @@ class CourseService {
 	}
 }
 
-module.exports = CourseService;
+export default CourseService;

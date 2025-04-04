@@ -1,3 +1,4 @@
+-- src/db/migrations/files/001_initial_schema.sql
 -- Create extension for UUID generation
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
@@ -18,7 +19,7 @@ CREATE TABLE clients (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name VARCHAR(255) NOT NULL,
   type VARCHAR(20) NOT NULL, -- 'school' or 'organization'
-  domain VARCHAR(255) UNIQUE,
+  domain VARCHAR(255),
   logo_url VARCHAR(255),
   primary_color VARCHAR(20),
   secondary_color VARCHAR(20),
@@ -111,8 +112,6 @@ CREATE TABLE progress_records (
 );
 
 -- Tables for authentication and token management
-
--- Refresh tokens for JWT authentication
 CREATE TABLE refresh_tokens (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID NOT NULL REFERENCES users(id),
@@ -122,7 +121,6 @@ CREATE TABLE refresh_tokens (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Password reset tokens
 CREATE TABLE password_reset_tokens (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID NOT NULL REFERENCES users(id),
@@ -132,7 +130,6 @@ CREATE TABLE password_reset_tokens (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Login attempts for rate limiting and account locking
 CREATE TABLE login_attempts (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   email VARCHAR(255) NOT NULL,
@@ -148,3 +145,32 @@ CREATE INDEX idx_password_reset_tokens_token ON password_reset_tokens(token);
 CREATE INDEX idx_password_reset_tokens_user_id ON password_reset_tokens(user_id);
 CREATE INDEX idx_login_attempts_email ON login_attempts(email);
 CREATE INDEX idx_login_attempts_email_created_at ON login_attempts(email, created_at);
+
+-- Create additional useful indexes
+CREATE INDEX idx_user_roles_user_id ON user_roles(user_id);
+CREATE INDEX idx_user_roles_entity ON user_roles(entity_type, entity_id);
+CREATE INDEX idx_enrollments_user_id ON enrollments(user_id);
+CREATE INDEX idx_enrollments_course_id ON enrollments(course_id);
+CREATE INDEX idx_progress_records_enrollment_id ON progress_records(enrollment_id);
+
+-- src/db/migrations/files/002_triggers.sql
+-- Create updated_at triggers
+CREATE OR REPLACE FUNCTION update_modified_column()
+RETURNS TRIGGER AS $$
+BEGIN
+   NEW.updated_at = now();
+   RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+-- Add triggers to all tables
+CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
+CREATE TRIGGER update_clients_updated_at BEFORE UPDATE ON clients FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
+CREATE TRIGGER update_departments_updated_at BEFORE UPDATE ON departments FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
+CREATE TRIGGER update_groups_updated_at BEFORE UPDATE ON groups FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
+CREATE TRIGGER update_user_roles_updated_at BEFORE UPDATE ON user_roles FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
+CREATE TRIGGER update_courses_updated_at BEFORE UPDATE ON courses FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
+CREATE TRIGGER update_modules_updated_at BEFORE UPDATE ON modules FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
+CREATE TRIGGER update_content_items_updated_at BEFORE UPDATE ON content_items FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
+CREATE TRIGGER update_enrollments_updated_at BEFORE UPDATE ON enrollments FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
+CREATE TRIGGER update_progress_records_updated_at BEFORE UPDATE ON progress_records FOR EACH ROW EXECUTE PROCEDURE update_modified_column();

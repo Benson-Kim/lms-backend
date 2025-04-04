@@ -1,16 +1,18 @@
 // src/app.js
-require("dotenv").config();
-const express = require("express");
-const cors = require("cors");
-const helmet = require("helmet");
-const morgan = require("morgan");
-const routes = require("./routes");
-const db = require("./config/database");
+import dotenv from "dotenv";
+import express from "express";
+import cors from "cors";
+import helmet from "helmet";
+import morgan from "morgan";
+import router from "./routes.js";
+import pool from "./config/database.js";
+
+dotenv.config();
 
 const app = express();
 
 // Make database connection available globally
-global.db = db;
+global.db = pool;
 
 // Middleware
 app.use(helmet()); // Security headers
@@ -19,7 +21,7 @@ app.use(express.json()); // Parse JSON bodies
 app.use(morgan("dev")); // Request logging
 
 // Routes
-app.use("/api", routes);
+app.use("/api", router);
 
 // Error handling
 app.use((err, req, res, next) => {
@@ -36,4 +38,4 @@ app.listen(PORT, () => {
 	console.log(`Server running on port ${PORT}`);
 });
 
-module.exports = app;
+export default app;

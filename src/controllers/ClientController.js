@@ -1,4 +1,4 @@
-const ClientService = require("../services/clientService");
+import ClientService from "../services/clientService.js";
 
 class ClientController {
 	static async createClient(req, res) {
@@ -183,4 +183,4 @@ class ClientController {
 	}
 }
 
-module.exports = ClientController;
+export default ClientController;

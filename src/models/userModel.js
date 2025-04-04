@@ -1,4 +1,4 @@
-const { pool } = require("../config/database");
+import pool from "../config/database.js";
 
 class User {
 	static async findById(id) {
@@ -120,4 +120,4 @@ class User {
 	}
 }
 
-module.exports = User;
+export default User;

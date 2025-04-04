@@ -1,5 +1,5 @@
-const Content = require("../models/contentModel");
-const CourseService = require("./courseService");
+import Content from "../models/contentModel.js";
+import CourseService from "./courseService.js";
 
 class ContentService {
 	static async createContentItem(moduleId, contentData, userId) {
@@ -229,4 +229,4 @@ class ContentService {
 	}
 }
 
-module.exports = ContentService;
+export default ContentService;

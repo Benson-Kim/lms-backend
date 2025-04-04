@@ -1,5 +1,6 @@
 // src/config/database.js
-const { Pool } = require("pg");
+import pkg from "pg";
+const { Pool } = pkg;
 
 // Create pool with connection details from environment variables
 const pool = new Pool({
@@ -27,4 +28,4 @@ pool.on("error", (err) => {
 	process.exit(-1);
 });
 
-module.exports = pool;
+export default pool;
