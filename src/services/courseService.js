@@ -7,7 +7,8 @@ class CourseService {
 			throw new Error("Course title is required");
 		}
 
-		if (!courseData.owner_type || !courseData.owner_id) {
+		// Validate owner info
+		if (!courseData.ownerType || !courseData.ownerId) {
 			throw new Error("Course owner information is required");
 		}
 
@@ -21,12 +22,15 @@ class CourseService {
 			throw new Error("Course not found");
 		}
 
-		// Check if user has access to this course
+		// Check if user has access to this course if not public
 		if (!course.is_public && userId) {
 			const hasAccess = await Course.userHasAccess(courseId, userId);
 			if (!hasAccess) {
 				throw new Error("Access denied");
 			}
+		} else if (!course.is_public && !userId) {
+			// Non-public course and no user ID provided
+			throw new Error("Access denied");
 		}
 
 		// Get modules and content items
@@ -90,10 +94,11 @@ class CourseService {
 		// Get max position to append at the end
 		const position = await Course.getNextModulePosition(courseId);
 
-		moduleData.position = position;
-		moduleData.course_id = courseId;
-
-		return Course.createModule(moduleData);
+		return Course.createModule({
+			course_id: courseId,
+			title: moduleData.title,
+			position: position,
+		});
 	}
 
 	static async updateModuleOrder(courseId, moduleOrderData, userId) {
@@ -106,6 +111,31 @@ class CourseService {
 
 		// moduleOrderData should be array of { id, position }
 		return Course.updateModuleOrder(moduleOrderData);
+	}
+
+	static async getCoursesByOwner(ownerType, ownerId, includePrivate = false) {
+		const filters = {
+			ownerType: ownerType,
+			ownerId: ownerId,
+		};
+
+		if (!includePrivate) {
+			filters.isPublic = true;
+		}
+
+		return Course.findAll(filters);
+	}
+
+	static async getPopularCourses(limit = 5) {
+		// This would require a new query in the Course model
+		// Implementation depends on how "popularity" is defined
+		// For now, we'll assume it's based on enrollment count
+		return Course.getMostEnrolledCourses(limit);
+	}
+
+	static async getRecentCourses(limit = 5) {
+		// Get most recently created courses
+		return Course.getRecentCourses(limit);
 	}
 }
 
