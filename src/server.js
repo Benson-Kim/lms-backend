@@ -5,19 +5,24 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
+import compression from "compression";
+
 import router from "./routes.js";
 import pool from "./config/database.js";
+import RedisCache from "../utils/redisCache.js";
 
 const app = express();
 
-// Make database connection available globally
+// Make database connection and redis available globally
 global.db = pool;
+global.cache = new RedisCache();
 
 // Middleware
 app.use(helmet()); // Security headers
 app.use(cors()); // Enable CORS
 app.use(express.json()); // Parse JSON bodies
 app.use(morgan("dev")); // Request logging
+app.use(compression()); // Add response compression
 
 // Routes
 app.use("/api", router);

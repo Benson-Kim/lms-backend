@@ -1,8 +1,14 @@
+import userCache from "../../utils/userCache.js";
 import pool from "../config/database.js";
 import bcrypt from "bcryptjs";
 
 class Auth {
 	static async verifyCredentials(email, password) {
+		const isLocked = await this.isAccountLocked(email);
+		if (isLocked) {
+			return { locked: true };
+		}
+
 		const result = await pool.query(
 			"SELECT id, email, password, first_name, last_name, profile_image, is_system_admin, is_individual_learner FROM users WHERE email = $1",
 			[email]
@@ -19,39 +25,65 @@ class Auth {
 			return null;
 		}
 
-		// Remove password from user object
+		// Remove password from user object and cache the results
 		delete user.password;
+
+		userCache.cacheUser(user.id, user);
 
 		return user;
 	}
 
 	static async getUserById(userId) {
+		const cachedUser = userCache.getCachedUser(userId);
+		if (cachedUser) {
+			return cachedUser;
+		}
+
 		const result = await pool.query(
 			"SELECT id, email, first_name, last_name, profile_image, is_system_admin, is_individual_learner FROM users WHERE id = $1",
 			[userId]
 		);
 
-		return result.rows[0] || null;
+		const user = result.rows[0] || null;
+		if (user) {
+			userCache.cacheUser(userId, user);
+		}
+
+		return user;
 	}
 
 	static async getUserRoles(userId) {
+		const cachedRoles = userCache.getCachedUserRoles(userId);
+		if (cachedRoles) {
+			return cachedRoles;
+		}
+
 		const result = await pool.query(
-			`SELECT ur.role, ur.entity_type, ur.entity_id, 
-			  CASE 
-				WHEN ur.entity_type = 'client' THEN c.name
-				WHEN ur.entity_type = 'department' THEN d.name
-				WHEN ur.entity_type = 'group' THEN g.name
-				ELSE NULL
-			  END AS entity_name
-			FROM user_roles ur
-			LEFT JOIN clients c ON ur.entity_type = 'client' AND ur.entity_id = c.id
-			LEFT JOIN departments d ON ur.entity_type = 'department' AND ur.entity_id = d.id
-			LEFT JOIN groups g ON ur.entity_type = 'group' AND ur.entity_id = g.id
-			WHERE ur.user_id = $1 AND ur.status = 'active'`,
+			`WITH user_role_data AS (
+				SELECT ur.role, ur.entity_type, ur.entity_id
+				FROM user_roles ur
+				WHERE ur.user_id = $1 AND ur.status = 'active'
+			)
+			SELECT 
+				urd.role, 
+				urd.entity_type, 
+				urd.entity_id,
+				CASE 
+					WHEN urd.entity_type = 'client' THEN c.name
+					WHEN urd.entity_type = 'department' THEN d.name
+					WHEN urd.entity_type = 'group' THEN g.name
+					ELSE NULL
+				END AS entity_name
+			FROM user_role_data urd
+			LEFT JOIN clients c ON urd.entity_type = 'client' AND urd.entity_id = c.id
+			LEFT JOIN departments d ON urd.entity_type = 'department' AND urd.entity_id = d.id
+			LEFT JOIN groups g ON urd.entity_type = 'group' AND urd.entity_id = g.id`,
 			[userId]
 		);
 
-		return result.rows;
+		const roles = result.rows;
+		userCache.cacheUserRoles(userId, roles);
+		return roles;
 	}
 
 	static async createRefreshToken(userId, token, expiresAt) {
@@ -91,18 +123,31 @@ class Auth {
 	}
 
 	static async createPasswordResetToken(userId, token, expiresAt) {
-		// First, invalidate any existing reset tokens
-		await pool.query(
-			"UPDATE password_reset_tokens SET is_used = TRUE WHERE user_id = $1 AND is_used = FALSE",
-			[userId]
-		);
+		const client = await pool.connect();
 
-		const result = await pool.query(
-			"INSERT INTO password_reset_tokens (user_id, token, expires_at) VALUES ($1, $2, $3) RETURNING *",
-			[userId, token, expiresAt]
-		);
+		try {
+			await client.query("BEGIN");
 
-		return result.rows[0];
+			// Invalidate existing tokens
+			await client.query(
+				"UPDATE password_reset_tokens SET is_used = TRUE WHERE user_id = $1 AND is_used = FALSE",
+				[userId]
+			);
+
+			// Create new token
+			const result = await client.query(
+				"INSERT INTO password_reset_tokens (user_id, token, expires_at) VALUES ($1, $2, $3) RETURNING *",
+				[userId, token, expiresAt]
+			);
+
+			await client.query("COMMIT");
+			return result.rows[0];
+		} catch (e) {
+			await client.query("ROLLBACK");
+			throw e;
+		} finally {
+			client.release();
+		}
 	}
 
 	static async findPasswordResetToken(token) {
@@ -169,6 +214,8 @@ class Auth {
 			"UPDATE users SET password = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING id",
 			[hashedPassword, userId]
 		);
+
+		userCache.invalidateUserCache(userId);
 
 		return result.rows[0];
 	}

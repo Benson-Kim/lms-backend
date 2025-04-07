@@ -9,17 +9,21 @@
 		"dev": "nodemon --experimental-specifier-resolution=node src/server.js",
 		"test": "jest",
 		"migrate": "node --experimental-specifier-resolution=node src/db/migrations/run.js",
-		"seed": "node --experimental-specifier-resolution=node src/db/seeds/run.js"
+		"seed": "node --experimental-specifier-resolution=node src/db/seeds/run.js",
+		"dockerseed": "node --experimental-specifier-resolution=node src/db/seeds/dockerrun.js"
 	},
 	"dependencies": {
 		"bcryptjs": "^2.4.3",
+		"compression": "^1.8.0",
 		"cors": "^2.8.5",
 		"dotenv": "^10.0.0",
 		"express": "^4.17.1",
 		"helmet": "^4.6.0",
 		"jsonwebtoken": "^9.0.0",
 		"morgan": "^1.10.0",
+		"node-cache": "^5.1.2",
 		"pg": "^8.7.1",
+		"redis": "^4.7.0",
 		"uuid": "^8.3.2"
 	},
 	"devDependencies": {

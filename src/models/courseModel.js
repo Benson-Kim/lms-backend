@@ -1,43 +1,55 @@
 import pool from "../config/database.js";
 
+import courseCache from "../../utils/courseCache.js";
+
 class Course {
 	static async findById(id) {
+		const cachedCourse = courseCache.getCachedCourse(id);
+		if (cachedCourse) {
+			return cachedCourse;
+		}
+
 		const result = await pool.query(
-			`SELECT c.*, 
-              CASE 
-                WHEN c.owner_type = 'client' THEN cl.name
-                WHEN c.owner_type = 'department' THEN d.name
-                WHEN c.owner_type = 'user' THEN CONCAT(u.first_name, ' ', u.last_name)
-                ELSE 'System'
-              END as owner_name
-       FROM courses c
-       LEFT JOIN clients cl ON c.owner_type = 'client' AND c.owner_id = cl.id
-       LEFT JOIN departments d ON c.owner_type = 'department' AND c.owner_id = d.id
-       LEFT JOIN users u ON c.owner_type = 'user' AND c.owner_id = u.id
-       WHERE c.id = $1`,
+			`SELECT c.id, c.title, c.description, c.thumbnail_url, c.owner_type, c.owner_id, c.is_public,
+			CASE 
+				WHEN c.owner_type = 'client' THEN cl.name
+				WHEN c.owner_type = 'department' THEN d.name
+				WHEN c.owner_type = 'user' THEN CONCAT(u.first_name, ' ', u.last_name)
+				ELSE 'System'
+			END as owner_name
+			FROM courses c
+			LEFT JOIN clients cl ON c.owner_type = 'client' AND c.owner_id = cl.id
+			LEFT JOIN departments d ON c.owner_type = 'department' AND c.owner_id = d.id
+			LEFT JOIN users u ON c.owner_type = 'user' AND c.owner_id = u.id
+			WHERE c.id = $1`,
 			[id]
 		);
 
-		return result.rows[0];
+		const course = result.rows[0];
+		if (course) {
+			courseCache.cacheCourse(id, course);
+		}
+
+		return course;
 	}
 
 	static async findAll(filters = {}) {
 		const { userId, ownerType, ownerId, isPublic } = filters;
 
 		let query = `
-      SELECT c.*, 
-             CASE 
-               WHEN c.owner_type = 'client' THEN cl.name
-               WHEN c.owner_type = 'department' THEN d.name
-               WHEN c.owner_type = 'user' THEN CONCAT(u.first_name, ' ', u.last_name)
-               ELSE 'System'
-             END as owner_name
-      FROM courses c
-      LEFT JOIN clients cl ON c.owner_type = 'client' AND c.owner_id = cl.id
-      LEFT JOIN departments d ON c.owner_type = 'department' AND c.owner_id = d.id
-      LEFT JOIN users u ON c.owner_type = 'user' AND c.owner_id = u.id
-      WHERE 1=1
-    `;
+			SELECT c.*, 
+				CASE 
+				WHEN c.owner_type = 'client' THEN cl.name
+				WHEN c.owner_type = 'department' THEN d.name
+				WHEN c.owner_type = 'user' THEN CONCAT(u.first_name, ' ', u.last_name)
+				ELSE 'System'
+				END as owner_name
+			FROM courses c
+			LEFT JOIN clients cl ON c.owner_type = 'client' AND c.owner_id = cl.id
+			LEFT JOIN departments d ON c.owner_type = 'department' AND c.owner_id = d.id
+			LEFT JOIN users u ON c.owner_type = 'user' AND c.owner_id = u.id
+			WHERE 1=1
+			`;
 
 		const queryParams = [];
 		let paramIndex = 1;
@@ -59,24 +71,24 @@ class Course {
 		// If user ID is provided, find courses the user has access to
 		if (userId) {
 			query += `
-        AND (
-          c.is_public = true
-          OR (c.owner_type = 'user' AND c.owner_id = $${paramIndex})
-          OR EXISTS (
-            SELECT 1 FROM enrollments e
-            WHERE e.course_id = c.id AND e.user_id = $${paramIndex} AND e.status != 'dropped'
-          )
-          OR EXISTS (
-            SELECT 1 FROM user_roles ur
-            WHERE ur.user_id = $${paramIndex}
-              AND ur.status = 'active'
-              AND (
-                (ur.role = 'admin' AND ur.entity_type = c.owner_type AND ur.entity_id = c.owner_id)
-                OR (ur.role = 'instructor' AND ur.entity_type = c.owner_type AND ur.entity_id = c.owner_id)
-              )
-          )
-        )
-      `;
+				AND (
+				c.is_public = true
+				OR (c.owner_type = 'user' AND c.owner_id = $${paramIndex})
+				OR EXISTS (
+					SELECT 1 FROM enrollments e
+					WHERE e.course_id = c.id AND e.user_id = $${paramIndex} AND e.status != 'dropped'
+				)
+				OR EXISTS (
+					SELECT 1 FROM user_roles ur
+					WHERE ur.user_id = $${paramIndex}
+					AND ur.status = 'active'
+					AND (
+						(ur.role = 'admin' AND ur.entity_type = c.owner_type AND ur.entity_id = c.owner_id)
+						OR (ur.role = 'instructor' AND ur.entity_type = c.owner_type AND ur.entity_id = c.owner_id)
+					)
+				)
+				)
+			`;
 			queryParams.push(userId);
 		}
 
@@ -103,15 +115,17 @@ class Course {
 
 		const result = await pool.query(
 			`UPDATE courses 
-       SET title = COALESCE($1, title),
-           description = COALESCE($2, description),
-           thumbnail_url = COALESCE($3, thumbnail_url),
-           is_public = COALESCE($4, is_public),
-           updated_at = CURRENT_TIMESTAMP
-       WHERE id = $5
-       RETURNING *`,
+			SET title = COALESCE($1, title),
+				description = COALESCE($2, description),
+				thumbnail_url = COALESCE($3, thumbnail_url),
+				is_public = COALESCE($4, is_public),
+				updated_at = CURRENT_TIMESTAMP
+			WHERE id = $5
+			RETURNING *`,
 			[title, description, thumbnailUrl, isPublic, id]
 		);
+
+		courseCache.invalidateCourseCache(id);
 
 		return result.rows[0];
 	}
@@ -125,12 +139,20 @@ class Course {
 	}
 
 	static async getModules(courseId) {
+		const cachedModules = courseCache.getCachedModules(courseId);
+		if (cachedModules) {
+			return cachedModules;
+		}
+
 		const result = await pool.query(
 			"SELECT * FROM modules WHERE course_id = $1 ORDER BY position",
 			[courseId]
 		);
 
-		return result.rows;
+		const modules = result.rows;
+		courseCache.cacheModules(courseId, modules);
+
+		return modules;
 	}
 
 	static async getModulesWithContent(courseId) {
@@ -138,9 +160,15 @@ class Course {
 		const modules = await this.getModules(courseId);
 
 		// For each module, get content items
-		for (const module of modules) {
-			module.content_items = await this.getContentItems(module.id);
-		}
+		const contentPromises = modules.map((module) =>
+			this.getContentItems(module.id)
+		);
+
+		const contentResults = await Promise.all(contentPromises);
+
+		modules.forEach((module, index) => {
+			module.content_items = contentResults[index];
+		});
 
 		return modules;
 	}
@@ -177,12 +205,20 @@ class Course {
 	}
 
 	static async getEnrollments(courseId, status = null) {
+		const cachedCourseEnrollments =
+			courseCache.getCachedCourseEnrollments(courseId);
+		if (cachedCourseEnrollments) {
+			const enrollment = cachedCourseEnrollments.find(
+				(e) => e.course_id === courseId
+			);
+			if (enrollment) return enrollment;
+		}
 		let query = `
-      SELECT e.*, u.first_name, u.last_name, u.email
-      FROM enrollments e
-      JOIN users u ON e.user_id = u.id
-      WHERE e.course_id = $1
-    `;
+			SELECT e.*, u.first_name, u.last_name, u.email
+			FROM enrollments e
+			JOIN users u ON e.user_id = u.id
+			WHERE e.course_id = $1
+			`;
 
 		const queryParams = [courseId];
 
@@ -194,50 +230,61 @@ class Course {
 		query += " ORDER BY u.last_name, u.first_name";
 
 		const result = await pool.query(query, queryParams);
-		return result.rows;
+		const courseEnrollments = result.rows;
+		courseCache.cacheCourseEnrollments(courseId, courseEnrollments);
+
+		return courseEnrollments;
 	}
 
 	static async getUserEnrollment(courseId, userId) {
+		const cachedUserEnrollments = courseCache.getCachedUserEnrollments(userId);
+		if (cachedUserEnrollments) {
+			const enrollment = cachedUserEnrollments.find(
+				(e) => e.course_id === courseId
+			);
+			if (enrollment) return enrollment;
+		}
+
 		const result = await pool.query(
 			"SELECT * FROM enrollments WHERE course_id = $1 AND user_id = $2",
 			[courseId, userId]
 		);
 
-		return result.rows[0] || null;
+		const userEnrollments = result.rows;
+		courseCache.cacheUserEnrollments(userId, userEnrollments);
+
+		return userEnrollments;
 	}
 
 	static async userHasAccess(courseId, userId) {
-		// Check if user is system admin
-		const adminCheck = await pool.query(
-			"SELECT 1 FROM users WHERE id = $1 AND is_system_admin = true",
-			[userId]
-		);
-
-		if (adminCheck.rows.length > 0) {
-			return true;
+		const cachedAccess = courseCache.getCachedAccess(userId, courseId);
+		if (cachedAccess !== undefined) {
+			return cachedAccess;
 		}
 
-		// Check if user is enrolled
-		const enrollmentCheck = await pool.query(
-			"SELECT 1 FROM enrollments WHERE course_id = $1 AND user_id = $2 AND status != 'dropped'",
-			[courseId, userId]
+		const result = await pool.query(
+			`
+			SELECT EXISTS (
+				SELECT 1 FROM users WHERE id = $1 AND is_system_admin = true
+			) OR EXISTS (
+				SELECT 1 FROM enrollments WHERE course_id = $2 AND user_id = $1 AND status != 'dropped'
+			) OR EXISTS (
+				SELECT 1 FROM courses c
+				JOIN user_roles ur ON 
+				(ur.entity_type = c.owner_type AND ur.entity_id = c.owner_id AND ur.user_id = $1
+					AND ur.status = 'active' AND (ur.role = 'admin' OR ur.role = 'instructor'))
+				WHERE c.id = $2
+			) OR EXISTS (
+				SELECT 1 FROM courses WHERE id = $2 AND owner_type = 'user' AND owner_id = $1
+			) as has_access`,
+			[userId, courseId]
 		);
 
-		if (enrollmentCheck.rows.length > 0) {
-			return true;
-		}
+		const hasAccess = result.rows[0].has_access;
 
-		// Check if user is course owner or has admin/instructor role
-		const courseCheck = await pool.query(
-			`SELECT 1 
-			FROM courses c
-			LEFT JOIN user_roles ur ON 
-				(ur.entity_type = c.owner_type AND ur.entity_id = c.owner_id AND ur.user_id = $2 AND ur.status = 'active' AND (ur.role = 'admin' OR ur.role = 'instructor'))
-			WHERE c.id = $1 AND (c.owner_type = 'user' AND c.owner_id = $2 OR ur.id IS NOT NULL)`,
-			[courseId, userId]
-		);
+		courseCache.cacheAccess(userId, courseId, hasAccess);
 
-		return courseCheck.rows.length > 0;
+		return hasAccess;
 	}
 
 	static async userCanAccessOwnerContent(ownerType, ownerId, userId) {
@@ -434,50 +481,59 @@ class Course {
 		return this.findAll(filters);
 	}
 
-	// Add these methods to the Course class in src/models/courseModel.js
-
 	static async getMostEnrolledCourses(limit = 5) {
+		const cacheKey = `popular:${limit}`;
+		const cachedCourses = courseCache.get(cacheKey);
+		if (cachedCourses) {
+			return cachedCourses;
+		}
+
 		const query = `
-    SELECT c.*, 
-      CASE 
-        WHEN c.owner_type = 'client' THEN cl.name
-        WHEN c.owner_type = 'department' THEN d.name
-        WHEN c.owner_type = 'user' THEN CONCAT(u.first_name, ' ', u.last_name)
-        ELSE 'System'
-      END as owner_name,
-      COUNT(e.id) as enrollment_count
-    FROM courses c
-    LEFT JOIN clients cl ON c.owner_type = 'client' AND c.owner_id = cl.id
-    LEFT JOIN departments d ON c.owner_type = 'department' AND c.owner_id = d.id
-    LEFT JOIN users u ON c.owner_type = 'user' AND c.owner_id = u.id
-    LEFT JOIN enrollments e ON c.id = e.course_id AND e.status != 'dropped'
-    WHERE c.is_public = true
-    GROUP BY c.id, cl.name, d.name, u.first_name, u.last_name
-    ORDER BY enrollment_count DESC
-    LIMIT $1
-  `;
+			SELECT c.*, 
+				CASE 
+				WHEN c.owner_type = 'client' THEN cl.name
+				WHEN c.owner_type = 'department' THEN d.name
+				WHEN c.owner_type = 'user' THEN CONCAT(u.first_name, ' ', u.last_name)
+				ELSE 'System'
+				END as owner_name,
+				COUNT(e.id) as enrollment_count
+			FROM courses c
+			LEFT JOIN clients cl ON c.owner_type = 'client' AND c.owner_id = cl.id
+			LEFT JOIN departments d ON c.owner_type = 'department' AND c.owner_id = d.id
+			LEFT JOIN users u ON c.owner_type = 'user' AND c.owner_id = u.id
+			LEFT JOIN enrollments e ON c.id = e.course_id AND e.status != 'dropped'
+			WHERE c.is_public = true
+			GROUP BY c.id, cl.name, d.name, u.first_name, u.last_name
+			ORDER BY enrollment_count DESC
+			LIMIT $1
+			`;
 
 		const result = await pool.query(query, [limit]);
-		return result.rows;
+		const courses = result.rows;
+
+		// Cache with longer TTL (1 hour)
+		courseCache.set(cacheKey, courses, 3600);
+
+		return courses;
 	}
 
 	static async getRecentCourses(limit = 5) {
 		const query = `
-    SELECT c.*, 
-      CASE 
-        WHEN c.owner_type = 'client' THEN cl.name
-        WHEN c.owner_type = 'department' THEN d.name
-        WHEN c.owner_type = 'user' THEN CONCAT(u.first_name, ' ', u.last_name)
-        ELSE 'System'
-      END as owner_name
-    FROM courses c
-    LEFT JOIN clients cl ON c.owner_type = 'client' AND c.owner_id = cl.id
-    LEFT JOIN departments d ON c.owner_type = 'department' AND c.owner_id = d.id
-    LEFT JOIN users u ON c.owner_type = 'user' AND c.owner_id = u.id
-    WHERE c.is_public = true
-    ORDER BY c.created_at DESC
-    LIMIT $1
-  `;
+			SELECT c.*, 
+			CASE 
+				WHEN c.owner_type = 'client' THEN cl.name
+				WHEN c.owner_type = 'department' THEN d.name
+				WHEN c.owner_type = 'user' THEN CONCAT(u.first_name, ' ', u.last_name)
+				ELSE 'System'
+			END as owner_name
+			FROM courses c
+			LEFT JOIN clients cl ON c.owner_type = 'client' AND c.owner_id = cl.id
+			LEFT JOIN departments d ON c.owner_type = 'department' AND c.owner_id = d.id
+			LEFT JOIN users u ON c.owner_type = 'user' AND c.owner_id = u.id
+			WHERE c.is_public = true
+			ORDER BY c.created_at DESC
+			LIMIT $1
+		`;
 
 		const result = await pool.query(query, [limit]);
 		return result.rows;
