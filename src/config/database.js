@@ -2,7 +2,6 @@
 import pkg from "pg";
 const { Pool } = pkg;
 
-// Create pool with connection details from environment variables
 const pool = new Pool({
 	user: process.env.DB_USER,
 	host: process.env.DB_HOST,
@@ -10,6 +9,17 @@ const pool = new Pool({
 	password: process.env.DB_PASSWORD,
 	port: process.env.DB_PORT || 5432,
 	ssl: process.env.DB_SSL === "true" ? { rejectUnauthorized: false } : false,
+
+	max: 20,
+	idleTimeoutMillis: 30000,
+	connectionTimeoutMillis: 2000,
+	maxUses: 7500,
+
+	// Query timeout settings: Terminate queries running longer than 10 seconds
+	statement_timeout: 10000,
+
+	// Keep connections alive with keepalive queries
+	keepAlive: true,
 });
 
 // Test the connection

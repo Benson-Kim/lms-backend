@@ -142,9 +142,59 @@ CREATE TABLE login_attempts (
 );
 
 -- Create indexes
-CREATE INDEX idx_refresh_tokens_token ON refresh_tokens(token);
-CREATE INDEX idx_refresh_tokens_user_id ON refresh_tokens(user_id);
-CREATE INDEX idx_password_reset_tokens_token ON password_reset_tokens(token);
-CREATE INDEX idx_password_reset_tokens_user_id ON password_reset_tokens(user_id);
-CREATE INDEX idx_login_attempts_email ON login_attempts(email);
-CREATE INDEX idx_login_attempts_email_created_at ON login_attempts(email, created_at);
+
+-- User-related indexes
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_name ON users(last_name, first_name);
+
+-- User roles indexes
+CREATE INDEX IF NOT EXISTS idx_user_roles_user_id ON user_roles(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_roles_entity ON user_roles(entity_type, entity_id);
+CREATE INDEX IF NOT EXISTS idx_user_roles_user_entity_role ON user_roles(user_id, entity_type, entity_id, role);
+CREATE INDEX IF NOT EXISTS idx_user_roles_status ON user_roles(status);
+CREATE INDEX IF NOT EXISTS idx_user_roles_combined ON user_roles(user_id, entity_type, entity_id, role, status);
+
+-- Client, department, and group indexes
+CREATE INDEX IF NOT EXISTS idx_departments_client_id ON departments(client_id);
+CREATE INDEX IF NOT EXISTS idx_groups_client_id ON groups(client_id);
+CREATE INDEX IF NOT EXISTS idx_groups_department_id ON groups(department_id);
+
+-- Authentication-related indexes
+ 
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_token ON refresh_tokens(token);
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user_id ON refresh_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user_id_not_revoked ON refresh_tokens(user_id) WHERE is_revoked = FALSE;
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_expires ON refresh_tokens(expires_at);
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_combined ON refresh_tokens(token, is_revoked, expires_at);
+
+CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_token ON password_reset_tokens(token);
+CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_user_id ON password_reset_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_combined ON password_reset_tokens(token, is_used, expires_at);
+CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_user_active ON password_reset_tokens(user_id) WHERE is_used = FALSE;
+
+-- Login attempts indexes for rate limiting queries
+CREATE INDEX IF NOT EXISTS idx_login_attempts_email ON login_attempts(email);
+CREATE INDEX IF NOT EXISTS idx_login_attempts_email_created_at ON login_attempts(email, created_at);
+CREATE INDEX IF NOT EXISTS idx_login_attempts_email_success ON login_attempts(email, success);
+CREATE INDEX IF NOT EXISTS idx_login_attempts_email_success_created ON login_attempts(email, success, created_at);
+
+-- Course-related indexes
+CREATE INDEX IF NOT EXISTS idx_courses_owner ON courses(owner_type, owner_id);
+CREATE INDEX IF NOT EXISTS idx_modules_course_id ON modules(course_id);
+CREATE INDEX IF NOT EXISTS idx_content_items_module_id ON content_items(module_id);
+CREATE INDEX IF NOT EXISTS idx_courses_public ON courses(is_public) WHERE is_public = TRUE;
+CREATE INDEX IF NOT EXISTS idx_user_roles_entity ON user_roles(user_id, entity_type, entity_id, role, status);
+
+-- Enrollment and progress indexes
+CREATE INDEX IF NOT EXISTS idx_enrollments_user_id ON enrollments(user_id);
+CREATE INDEX IF NOT EXISTS idx_enrollments_course_id ON enrollments(course_id);
+CREATE INDEX IF NOT EXISTS idx_enrollments_status ON enrollments(status);
+CREATE INDEX IF NOT EXISTS idx_enrollments_user_course ON enrollments(user_id, course_id);
+CREATE INDEX IF NOT EXISTS idx_content_items_position ON content_items(module_id, position);
+CREATE INDEX IF NOT EXISTS idx_enrollments_active ON enrollments(user_id, course_id) WHERE status != 'dropped';
+
+CREATE INDEX IF NOT EXISTS idx_progress_records_enrollment_id ON progress_records(enrollment_id);
+CREATE INDEX IF NOT EXISTS idx_progress_records_content_item_id ON progress_records(content_item_id);
+CREATE INDEX IF NOT EXISTS idx_progress_records_status ON progress_records(status);
+CREATE INDEX IF NOT EXISTS idx_progress_records_combined ON progress_records(enrollment_id, content_item_id, status);
+
