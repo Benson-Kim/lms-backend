@@ -4,7 +4,7 @@ import UserService from "../services/userService.js";
 class UserController {
 	static async getProfile(req, res) {
 		try {
-			const userId = req.userId;
+			const userId = req.user.id;
 			const profile = await UserService.getUserProfile(userId);
 
 			return res.json(profile);
@@ -16,7 +16,7 @@ class UserController {
 
 	static async updateProfile(req, res) {
 		try {
-			const userId = req.userId;
+			const userId = req.user.id;
 			const profileData = req.body;
 
 			// Don't allow updating password or system admin status through this endpoint
@@ -41,7 +41,7 @@ class UserController {
 
 	static async changePassword(req, res) {
 		try {
-			const userId = req.userId;
+			const userId = req.user.id;
 			const { currentPassword, newPassword } = req.body;
 
 			if (!currentPassword || !newPassword) {

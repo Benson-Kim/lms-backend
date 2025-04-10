@@ -4,7 +4,7 @@ import courseCache from "../../utils/courseCache.js";
 
 class Course {
 	static async findById(id) {
-		const cachedCourse = courseCache.getCachedCourse(id);
+		const cachedCourse = await courseCache.getCachedCourse(id);
 		if (cachedCourse) {
 			return cachedCourse;
 		}
@@ -27,7 +27,7 @@ class Course {
 
 		const course = result.rows[0];
 		if (course) {
-			courseCache.cacheCourse(id, course);
+			await courseCache.cacheCourse(id, course);
 		}
 
 		return course;
@@ -125,7 +125,7 @@ class Course {
 			[title, description, thumbnailUrl, isPublic, id]
 		);
 
-		courseCache.invalidateCourseCache(id);
+		await courseCache.invalidateCourseCache(id);
 
 		return result.rows[0];
 	}
@@ -139,7 +139,7 @@ class Course {
 	}
 
 	static async getModules(courseId) {
-		const cachedModules = courseCache.getCachedModules(courseId);
+		const cachedModules = await courseCache.getCachedModules(courseId);
 		if (cachedModules) {
 			return cachedModules;
 		}
@@ -150,7 +150,7 @@ class Course {
 		);
 
 		const modules = result.rows;
-		courseCache.cacheModules(courseId, modules);
+		await courseCache.cacheModules(courseId, modules);
 
 		return modules;
 	}
@@ -206,7 +206,7 @@ class Course {
 
 	static async getEnrollments(courseId, status = null) {
 		const cachedCourseEnrollments =
-			courseCache.getCachedCourseEnrollments(courseId);
+			await courseCache.getCachedCourseEnrollments(courseId);
 		if (cachedCourseEnrollments) {
 			const enrollment = cachedCourseEnrollments.find(
 				(e) => e.course_id === courseId
@@ -231,13 +231,15 @@ class Course {
 
 		const result = await pool.query(query, queryParams);
 		const courseEnrollments = result.rows;
-		courseCache.cacheCourseEnrollments(courseId, courseEnrollments);
+		await courseCache.cacheCourseEnrollments(courseId, courseEnrollments);
 
 		return courseEnrollments;
 	}
 
 	static async getUserEnrollment(courseId, userId) {
-		const cachedUserEnrollments = courseCache.getCachedUserEnrollments(userId);
+		const cachedUserEnrollments = await courseCache.getCachedUserEnrollments(
+			userId
+		);
 		if (cachedUserEnrollments) {
 			const enrollment = cachedUserEnrollments.find(
 				(e) => e.course_id === courseId
@@ -251,58 +253,40 @@ class Course {
 		);
 
 		const userEnrollments = result.rows;
-		courseCache.cacheUserEnrollments(userId, userEnrollments);
+		await courseCache.cacheUserEnrollments(userId, userEnrollments);
 
 		return userEnrollments;
 	}
 
 	static async userHasAccess(courseId, userId) {
-		const cachedAccess = courseCache.getCachedAccess(userId, courseId);
-		if (cachedAccess !== undefined) {
+		const cachedAccess = await courseCache.getCachedAccess(userId, courseId);
+		if (cachedAccess !== null) {
 			return cachedAccess;
 		}
 
 		const result = await pool.query(
 			`
-			SELECT EXISTS (
-				SELECT 1 FROM users WHERE id = $1 AND is_system_admin = true
-			) OR EXISTS (
-				SELECT 1 FROM enrollments WHERE course_id = $2 AND user_id = $1 AND status != 'dropped'
-			) OR EXISTS (
-				SELECT 1 FROM courses c
-				JOIN user_roles ur ON 
-				(ur.entity_type = c.owner_type AND ur.entity_id = c.owner_id AND ur.user_id = $1
-					AND ur.status = 'active' AND (ur.role = 'admin' OR ur.role = 'instructor'))
-				WHERE c.id = $2
-			) OR EXISTS (
-				SELECT 1 FROM courses WHERE id = $2 AND owner_type = 'user' AND owner_id = $1
-			) as has_access`,
+				SELECT EXISTS (
+					SELECT 1 FROM users WHERE id = $1 AND is_system_admin = true
+				) OR EXISTS (
+					SELECT 1 FROM enrollments WHERE course_id = $2 AND user_id = $1 AND status != 'dropped'
+				) OR EXISTS (
+					SELECT 1 FROM courses c
+					JOIN user_roles ur ON
+					(ur.entity_type = c.owner_type AND ur.entity_id = c.owner_id AND ur.user_id = $1
+						AND ur.status = 'active' AND (ur.role = 'admin' OR ur.role = 'instructor'))
+					WHERE c.id = $2
+				) OR EXISTS (
+					SELECT 1 FROM courses WHERE id = $2 AND owner_type = 'user' AND owner_id = $1
+				) as has_access`,
 			[userId, courseId]
 		);
 
 		const hasAccess = result.rows[0].has_access;
 
-		courseCache.cacheAccess(userId, courseId, hasAccess);
+		await courseCache.cacheAccess(userId, courseId, hasAccess);
 
 		return hasAccess;
-	}
-
-	static async userCanAccessOwnerContent(ownerType, ownerId, userId) {
-		const adminCheck = await pool.query(
-			"SELECT 1 FROM users WHERE id = $1 AND is_system_admin = true",
-			[userId]
-		);
-
-		if (adminCheck.rows.length > 0) {
-			return true;
-		}
-
-		const roleCheck = await pool.query(
-			"SELECT 1 FROM user_roles WHERE user_id = $1 AND entity_type = $2 AND entity_id = $3 AND status = 'active' AND role IN ('admin', 'instructor')",
-			[userId, ownerType, ownerId]
-		);
-
-		return roleCheck.rows.length > 0;
 	}
 
 	static async userCanEdit(courseId, userId) {
@@ -483,7 +467,7 @@ class Course {
 
 	static async getMostEnrolledCourses(limit = 5) {
 		const cacheKey = `popular:${limit}`;
-		const cachedCourses = courseCache.get(cacheKey);
+		const cachedCourses = await courseCache.get(cacheKey);
 		if (cachedCourses) {
 			return cachedCourses;
 		}
@@ -512,7 +496,7 @@ class Course {
 		const courses = result.rows;
 
 		// Cache with longer TTL (1 hour)
-		courseCache.set(cacheKey, courses, 3600);
+		await courseCache.set(cacheKey, courses, 3600);
 
 		return courses;
 	}

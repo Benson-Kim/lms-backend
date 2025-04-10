@@ -1,10 +1,5 @@
-// import RedisCache from "./redisCache.js";
-
-// const courseCache = new RedisCache();
-// const enrollmentCache = new RedisCache();
-// const accessCache = new RedisCache();
-
-const cache = global.cache;
+// utils/courseCache.js
+import redisCache from "./redisCache.js";
 
 // Cache key prefixes
 const COURSE_CACHE_PREFIX = "course:";
@@ -15,67 +10,67 @@ const COURSE_ENROLLMENTS_PREFIX = "enrollments:course:";
 
 // Course caching
 export const cacheCourse = async (courseId, courseData) => {
-	await cache.set(`${COURSE_CACHE_PREFIX}${courseId}`, courseData);
+	await redisCache.set(`${COURSE_CACHE_PREFIX}${courseId}`, courseData);
 };
 
 export const getCachedCourse = async (courseId) => {
-	return await cache.get(`${COURSE_CACHE_PREFIX}${courseId}`);
+	return await redisCache.get(`${COURSE_CACHE_PREFIX}${courseId}`);
 };
 
 export const cacheModules = async (courseId, modules) => {
-	await cache.set(`${COURSE_MODULES_PREFIX}${courseId}`, modules);
+	await redisCache.set(`${COURSE_MODULES_PREFIX}${courseId}`, modules);
 };
 
 export const getCachedModules = async (courseId) => {
-	return await cache.get(`${COURSE_MODULES_PREFIX}${courseId}`);
+	return await redisCache.get(`${COURSE_MODULES_PREFIX}${courseId}`);
 };
 
 export const invalidateCourseCache = async (courseId) => {
-	cache.del(`${COURSE_CACHE_PREFIX}${courseId}`);
-	cache.del(`${COURSE_MODULES_PREFIX}${courseId}`);
-	cache.del(`${COURSE_ENROLLMENTS_PREFIX}${courseId}`);
+	await redisCache.del(`${COURSE_CACHE_PREFIX}${courseId}`);
+	await redisCache.del(`${COURSE_MODULES_PREFIX}${courseId}`);
+	await redisCache.del(`${COURSE_ENROLLMENTS_PREFIX}${courseId}`);
 
 	// Clear all access caches related to this course
-	const courseAccessKeys = accessCache
-		.keys()
-		.filter((key) => key.includes(`course:${courseId}`));
-	courseAccessKeys.forEach((key) => cache.del(key));
+	const courseAccessKeys = await redisCache.keys(`*course:${courseId}*`);
+	for (const key of courseAccessKeys) {
+		await redisCache.del(key);
+	}
 };
 
 // Access caching
 export const cacheAccess = async (userId, courseId, hasAccess) => {
-	await cache.set(
+	await redisCache.set(
 		`${USER_ACCESS_PREFIX}${userId}:course:${courseId}`,
 		hasAccess
 	);
 };
 
 export const getCachedAccess = async (userId, courseId) => {
-	return await cache.get(`${USER_ACCESS_PREFIX}${userId}:course:${courseId}`);
+	return await redisCache.get(
+		`${USER_ACCESS_PREFIX}${userId}:course:${courseId}`
+	);
 };
 
 // Enrollment caching
 export const cacheUserEnrollments = async (userId, enrollments) => {
-	await cache.set(`${USER_ENROLLMENTS_PREFIX}${userId}`, enrollments);
+	await redisCache.set(`${USER_ENROLLMENTS_PREFIX}${userId}`, enrollments);
 };
 
 export const getCachedUserEnrollments = async (userId) => {
-	return await cache.get(`${USER_ENROLLMENTS_PREFIX}${userId}`);
+	return await redisCache.get(`${USER_ENROLLMENTS_PREFIX}${userId}`);
 };
 
 export const cacheCourseEnrollments = async (courseId, enrollments) => {
-	await cache.set(`${COURSE_ENROLLMENTS_PREFIX}${courseId}`, enrollments);
+	await redisCache.set(`${COURSE_ENROLLMENTS_PREFIX}${courseId}`, enrollments);
 };
 
 export const getCachedCourseEnrollments = async (courseId) => {
-	return await cache.get(`${COURSE_ENROLLMENTS_PREFIX}${courseId}`);
+	return await redisCache.get(`${COURSE_ENROLLMENTS_PREFIX}${courseId}`);
 };
 
 // Cache management
 export const flushAllCaches = async () => {
-	cache.flushAll();
-	cache.flushAll();
-	cache.flushAll();
+	await redisCache.flushAll();
 };
 
 export default {

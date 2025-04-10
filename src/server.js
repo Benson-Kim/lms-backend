@@ -1,28 +1,31 @@
 // server.js
 import "dotenv/config";
-
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import compression from "compression";
-
 import router from "./routes.js";
 import pool from "./config/database.js";
-import RedisCache from "../utils/redisCache.js";
+import redisCache from "../utils/redisCache.js";
 
 const app = express();
 
 // Make database connection and redis available globally
 global.db = pool;
-global.cache = new RedisCache();
+global.cache = redisCache; // This will use the singleton instance
 
 // Middleware
-app.use(helmet()); // Security headers
-app.use(cors()); // Enable CORS
-app.use(express.json()); // Parse JSON bodies
-app.use(morgan("dev")); // Request logging
-app.use(compression()); // Add response compression
+app.use(helmet());
+app.use(
+	cors({
+		origin: "http://localhost:3000",
+		credentials: true,
+	})
+);
+app.use(express.json());
+app.use(morgan("dev"));
+app.use(compression());
 
 // Routes
 app.use("/api", router);
@@ -36,7 +39,7 @@ app.use((err, req, res, next) => {
 	});
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8000;
 app.listen(PORT, () => {
 	console.log(`Server running on port ${PORT}`);
 });

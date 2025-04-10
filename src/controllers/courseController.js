@@ -71,8 +71,8 @@ class CourseController {
 			}
 
 			// If user is authenticated, include their ID for access control
-			if (req.userId) {
-				filters.userId = req.userId;
+			if (req.user.id) {
+				filters.userId = req.user.id;
 			}
 
 			let courses;
@@ -80,7 +80,7 @@ class CourseController {
 			if (search) {
 				courses = await searchCourses(search, filters, limit, offset);
 			} else {
-				courses = await getUserCourses(req.userId, filters);
+				courses = await getUserCourses(req.user.id, filters);
 			}
 
 			res.json({
@@ -103,7 +103,7 @@ class CourseController {
 	static async getCourse(req, res) {
 		try {
 			const { courseId } = req.params;
-			const userId = req.userId; // Will be undefined for public access
+			const userId = req.user.id;
 
 			const course = await _getCourse(courseId, userId);
 			res.json(course);
@@ -163,7 +163,7 @@ class CourseController {
 				description,
 				thumbnailUrl: thumbnail_url,
 				ownerType: owner_type,
-				ownerId: owner_type === "user" ? req.userId : owner_id,
+				ownerId: owner_type === "user" ? req.user.id : owner_id,
 				isPublic: is_public === true,
 			};
 
@@ -192,7 +192,7 @@ class CourseController {
 				isPublic: is_public,
 			};
 
-			const course = await _updateCourse(courseId, courseData, req.userId);
+			const course = await _updateCourse(courseId, courseData, req.user.id);
 			res.json(course);
 		} catch (error) {
 			console.error("Error updating course:", error);
@@ -214,7 +214,7 @@ class CourseController {
 		try {
 			const { courseId } = req.params;
 
-			await _deleteCourse(courseId, req.userId);
+			await _deleteCourse(courseId, req.user.id);
 			res.json({ success: true });
 		} catch (error) {
 			console.error("Error deleting course:", error);
@@ -242,7 +242,7 @@ class CourseController {
 			}
 
 			const moduleData = { title };
-			const module = await _addModule(courseId, moduleData, req.userId);
+			const module = await _addModule(courseId, moduleData, req.user.id);
 
 			res.status(201).json(module);
 		} catch (error) {
@@ -268,7 +268,7 @@ class CourseController {
 				return res.status(400).json({ error: "Modules must be an array" });
 			}
 
-			await updateModuleOrder(courseId, modules, req.userId);
+			await updateModuleOrder(courseId, modules, req.user.id);
 			res.json({ success: true });
 		} catch (error) {
 			console.error("Error reordering modules:", error);
@@ -305,7 +305,7 @@ class CourseController {
 			// For example, users can only see their own private courses
 			let authorized = false;
 			if (includePrivate) {
-				if (owner_type === "user" && owner_id === req.userId) {
+				if (owner_type === "user" && owner_id === req.user.id) {
 					authorized = true;
 				} else if (["system", "client", "department"].includes(owner_type)) {
 					// Here you would implement additional authorization logic
@@ -314,7 +314,7 @@ class CourseController {
 					authorized = await CourseService.userCanAccessOwnerContent(
 						owner_type,
 						owner_id,
-						req.userId
+						req.user.id
 					);
 				}
 
@@ -380,7 +380,7 @@ class CourseController {
 			const contentItem = await createContentItem(
 				moduleId,
 				contentData,
-				req.userId
+				req.user.id
 			);
 			res.status(201).json(contentItem);
 		} catch (error) {
@@ -410,7 +410,7 @@ class CourseController {
 			const contentItem = await updateContentItem(
 				contentItemId,
 				contentData,
-				req.userId
+				req.user.id
 			);
 			res.json(contentItem);
 		} catch (error) {
@@ -433,7 +433,7 @@ class CourseController {
 		try {
 			const { contentItemId } = req.params;
 
-			await deleteContentItem(contentItemId, req.userId);
+			await deleteContentItem(contentItemId, req.user.id);
 			res.json({ success: true });
 		} catch (error) {
 			console.error("Error deleting content:", error);
@@ -455,7 +455,7 @@ class CourseController {
 		try {
 			const { courseId } = req.params;
 
-			const enrollment = await enrollUser(req.userId, courseId);
+			const enrollment = await enrollUser(req.user.id, courseId);
 			res.status(201).json(enrollment);
 		} catch (error) {
 			console.error("Error enrolling in course:", error);
@@ -488,7 +488,7 @@ class CourseController {
 			};
 
 			const progress = await updateProgress(
-				req.userId,
+				req.user.id,
 				courseId,
 				contentItemId,
 				progressData
@@ -517,7 +517,7 @@ class CourseController {
 			const { courseId } = req.params;
 
 			const progress = await enrollmentService.getUserProgress(
-				req.userId,
+				req.user.id,
 				courseId
 			);
 			res.json(progress);
@@ -543,7 +543,7 @@ class CourseController {
 		try {
 			const { courseId } = req.params;
 
-			const canView = await CourseService.userCanEdit(courseId, req.userId);
+			const canView = await CourseService.userCanEdit(courseId, req.user.id);
 
 			if (!canView) {
 				return res.status(403).json({ error: "Permission denied" });
@@ -579,7 +579,7 @@ class CourseController {
 
 			const result = await submitQuizAttempt(
 				contentItemId,
-				req.userId,
+				req.user.id,
 				answersWithTime
 			);
 			res.json(result);
@@ -599,7 +599,7 @@ class CourseController {
 	 */
 	static async getUserStats(req, res) {
 		try {
-			const stats = await enrollmentService.getUserStats(req.userId);
+			const stats = await enrollmentService.getUserStats(req.user.id);
 			res.json(stats);
 		} catch (error) {
 			console.error("Error getting user stats:", error);

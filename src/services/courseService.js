@@ -16,29 +16,44 @@ class CourseService {
 	}
 
 	static async getCourse(courseId, userId = null) {
+		console.log(`Looking for course with ID: ${courseId}`);
+
 		const course = await Course.findById(courseId);
 
 		if (!course) {
+			console.log(`Course with ID ${courseId} not found in database`);
 			throw new Error("Course not found");
 		}
 
+		console.log(`Found course: ${course.title}`);
+
 		// Check if user has access to this course if not public
 		if (!course.is_public && userId) {
+			console.log(
+				`Course is not public, checking if user ${userId} has access`
+			);
 			const hasAccess = await Course.userHasAccess(courseId, userId);
 			if (!hasAccess) {
+				console.log(
+					`User ${userId} does not have access to course ${courseId}`
+				);
 				throw new Error("Access denied");
 			}
+			console.log(`User ${userId} has access to course ${courseId}`);
 		} else if (!course.is_public && !userId) {
 			// Non-public course and no user ID provided
+			console.log(`Course is not public and no user ID provided`);
 			throw new Error("Access denied");
 		}
 
 		// Get modules and content items
+		console.log(`Getting modules for course ${courseId}`);
 		const modules = await Course.getModulesWithContent(courseId);
 
 		// Get enrollment status if userId provided
 		let enrollment = null;
 		if (userId) {
+			console.log(`Getting enrollment status for user ${userId}`);
 			enrollment = await Course.getUserEnrollment(courseId, userId);
 		}
 

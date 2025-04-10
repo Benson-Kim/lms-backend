@@ -32,7 +32,8 @@ CREATE TABLE departments (
   client_id UUID NOT NULL REFERENCES clients(id),
   name VARCHAR(255) NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(client_id, name)
 );
 
 CREATE TABLE groups (
@@ -40,6 +41,7 @@ CREATE TABLE groups (
   client_id UUID NOT NULL REFERENCES clients(id),
   department_id UUID NOT NULL REFERENCES departments(id),
   name VARCHAR(255) NOT NULL,
+  description TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -52,7 +54,8 @@ CREATE TABLE user_roles (
   role VARCHAR(20) NOT NULL, -- 'admin', 'instructor', 'student', 'member'
   status VARCHAR(20) DEFAULT 'active',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(user_id, entity_type, entity_id, role)
 );
 
 CREATE TABLE courses (
@@ -72,6 +75,7 @@ CREATE TABLE modules (
   course_id UUID NOT NULL REFERENCES courses(id),
   title VARCHAR(255) NOT NULL,
   position INTEGER NOT NULL,
+  description TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
