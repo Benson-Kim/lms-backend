@@ -124,6 +124,7 @@ class User {
 		);
 
 		const roles = result.rows;
+		console.log("Fetched roles:", roles);
 
 		userCache.cacheUserRoles(userId, roles);
 

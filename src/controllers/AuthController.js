@@ -53,7 +53,7 @@ class AuthController {
 
 	static async logout(req, res) {
 		try {
-			const userId = req.userId;
+			const userId = req.user.id;
 			const { refreshToken } = req.body;
 
 			if (!refreshToken) {
@@ -71,7 +71,7 @@ class AuthController {
 
 	static async logoutAll(req, res) {
 		try {
-			const userId = req.userId;
+			const userId = req.user.id;
 
 			await AuthService.logoutFromAllDevices(userId);
 

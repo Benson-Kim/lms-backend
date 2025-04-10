@@ -26,10 +26,10 @@ router.post("/logout", authenticate, AuthController.logout);
 router.post("/logout-all", authenticate, AuthController.logoutAll);
 
 // User routes
-router.get("/users/profile", authenticate, UserController.getProfile);
-router.put("/users/profile", authenticate, UserController.updateProfile);
+router.get("/user/profile", authenticate, UserController.getProfile);
+router.put("/user/profile", authenticate, UserController.updateProfile);
 router.post(
-	"/users/change-password",
+	"/user/change-password",
 	authenticate,
 	UserController.changePassword
 );

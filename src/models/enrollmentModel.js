@@ -505,6 +505,236 @@ class Enrollment {
 			throw new Error(`Failed to check course access: ${error.message}`);
 		}
 	}
+
+	// Dashboard-related queries moved from service to model
+	static async getUpcomingTasks(userId) {
+		try {
+			const result = await pool.query(
+				`SELECT 
+					ci.id, 
+					ci.title, 
+					ci.content_type, 
+					(ci.content->>'due_date')::date AS due_date, 
+					c.title AS course_title, 
+					c.id AS course_id
+				FROM content_items ci
+				JOIN modules m ON ci.module_id = m.id
+				JOIN courses c ON m.course_id = c.id
+				JOIN enrollments e ON c.id = e.course_id
+				LEFT JOIN progress_records pr ON ci.id = pr.content_item_id AND e.id = pr.enrollment_id
+				WHERE e.user_id = $1
+				AND ci.content_type IN ('assignment', 'quiz')
+				AND (pr.status IS NULL OR pr.status != 'completed')
+				AND ci.content->>'due_date' IS NOT NULL
+				AND (ci.content->>'due_date')::date >= CURRENT_DATE
+				ORDER BY (ci.content->>'due_date')::date ASC`,
+				[userId]
+			);
+			return result.rows || [];
+		} catch (error) {
+			console.error("Error in getUpcomingTasks:", error);
+			throw new Error(`Failed to fetch upcoming tasks: ${error.message}`);
+		}
+	}
+
+	static async getRecentActivity(userId) {
+		try {
+			const result = await pool.query(
+				`SELECT 
+					pr.id, pr.status, pr.score, pr.time_spent, pr.updated_at, 
+                	ci.title, ci.content_type, c.title as course_title, c.id as course_id
+				FROM progress_records pr
+				JOIN enrollments e ON pr.enrollment_id = e.id
+				JOIN content_items ci ON pr.content_item_id = ci.id
+				JOIN modules m ON ci.module_id = m.id
+				JOIN courses c ON m.course_id = c.id
+				WHERE e.user_id = $1
+				ORDER BY pr.updated_at DESC
+				LIMIT 10`,
+				[userId]
+			);
+			return result.rows || [];
+		} catch (error) {
+			console.error("Error in getRecentActivity:", error);
+			throw new Error(`Failed to fetch recent activity: ${error.message}`);
+		}
+	}
+
+	static async getPerformanceMetrics(userId) {
+		try {
+			const result = await pool.query(
+				`SELECT 
+					COALESCE(AVG(pr.score), 0) as average_score, 
+					COUNT(pr.id) as total_attempts,
+					COUNT(DISTINCT e.course_id) as courses_with_activity
+				FROM progress_records pr
+				JOIN enrollments e ON pr.enrollment_id = e.id
+				WHERE e.user_id = $1 
+				AND pr.status = 'completed'`,
+				[userId]
+			);
+			return (
+				result.rows[0] || {
+					average_score: 0,
+					total_attempts: 0,
+					courses_with_activity: 0,
+				}
+			);
+		} catch (error) {
+			console.error("Error in getPerformanceMetrics:", error);
+			throw new Error(`Failed to fetch performance metrics: ${error.message}`);
+		}
+	}
+
+	static async getCompletionStats(userId) {
+		try {
+			const result = await pool.query(
+				`SELECT 
+					COUNT(CASE WHEN pr.status = 'completed' THEN 1 END) as completed_items,
+					COUNT(DISTINCT ci.id) as total_items,
+					COUNT(CASE WHEN ci.content_type = 'quiz' AND pr.status = 'completed' THEN 1 END) as completed_quizzes,
+					COUNT(CASE WHEN ci.content_type = 'assignment' AND pr.status = 'completed' THEN 1 END) as completed_assignments,
+					COUNT(CASE WHEN ci.content_type = 'video' AND pr.status = 'completed' THEN 1 END) as completed_videos,
+					COUNT(CASE WHEN ci.content_type = 'text' AND pr.status = 'completed' THEN 1 END) as completed_texts
+				FROM enrollments e
+				JOIN courses c ON e.course_id = c.id
+				JOIN modules m ON m.course_id = c.id
+				JOIN content_items ci ON ci.module_id = m.id
+				LEFT JOIN progress_records pr ON pr.content_item_id = ci.id AND pr.enrollment_id = e.id
+				WHERE 
+					e.user_id = $1 
+					AND e.status = 'enrolled'`,
+				[userId]
+			);
+
+			const stats = result.rows[0] || {
+				completed_items: 0,
+				total_items: 0,
+				completed_quizzes: 0,
+				completed_assignments: 0,
+				completed_videos: 0,
+				completed_texts: 0,
+			};
+
+			stats.completion_percentage =
+				stats.total_items > 0
+					? (stats.completed_items / stats.total_items) * 100
+					: 0;
+
+			return stats;
+		} catch (error) {
+			console.error("Error in getCompletionStats:", error);
+			throw new Error(
+				`Failed to fetch completion statistics: ${error.message}`
+			);
+		}
+	}
+
+	static async getTimeSpentStats(userId) {
+		try {
+			const result = await pool.query(
+				`SELECT 
+					SUM(pr.time_spent) as total_time_spent,
+					AVG(pr.time_spent) as avg_time_per_item,
+					SUM(CASE WHEN ci.content_type = 'video' THEN pr.time_spent ELSE 0 END) as time_on_videos,
+					SUM(CASE WHEN ci.content_type = 'quiz' THEN pr.time_spent ELSE 0 END) as time_on_quizzes,
+					SUM(CASE WHEN ci.content_type = 'assignment' THEN pr.time_spent ELSE 0 END) as time_on_assignments,
+					SUM(CASE WHEN ci.content_type = 'text' THEN pr.time_spent ELSE 0 END) as time_on_readings
+				FROM progress_records pr
+				JOIN enrollments e ON pr.enrollment_id = e.id
+				JOIN content_items ci ON pr.content_item_id = ci.id
+				WHERE e.user_id = $1`,
+				[userId]
+			);
+
+			return (
+				result.rows[0] || {
+					total_time_spent: 0,
+					avg_time_per_item: 0,
+					time_on_videos: 0,
+					time_on_quizzes: 0,
+					time_on_assignments: 0,
+					time_on_readings: 0,
+				}
+			);
+		} catch (error) {
+			console.error("Error in getTimeSpentStats:", error);
+			throw new Error(
+				`Failed to fetch time spent statistics: ${error.message}`
+			);
+		}
+	}
+
+	static async getCourseEnrollmentAnalytics(userId, courseId) {
+		try {
+			// Get enrollment record
+			const enrollment = await this.findByUserAndCourse(userId, courseId);
+
+			if (!enrollment) {
+				throw new Error("Enrollment not found");
+			}
+
+			// Get detailed progress
+			const detailedProgress = await this.getDetailedProgress(enrollment.id);
+
+			// Get time distribution by content type
+			const timeDistributionQuery = await pool.query(
+				`SELECT 
+            ci.content_type, 
+            SUM(pr.time_spent) as time_spent,
+            COUNT(DISTINCT ci.id) as item_count,
+            COUNT(CASE WHEN pr.status = 'completed' THEN 1 END) as completed_count
+         FROM progress_records pr
+         JOIN content_items ci ON pr.content_item_id = ci.id
+         JOIN modules m ON ci.module_id = m.id
+         WHERE pr.enrollment_id = $1 AND m.course_id = $2
+         GROUP BY ci.content_type`,
+				[enrollment.id, courseId]
+			);
+
+			// Get score distribution for quizzes and assignments
+			const scoreDistributionQuery = await pool.query(
+				`SELECT 
+            ci.title,
+            ci.content_type,
+            pr.score,
+            pr.time_spent,
+            pr.completed_at
+         FROM progress_records pr
+         JOIN content_items ci ON pr.content_item_id = ci.id
+         JOIN modules m ON ci.module_id = m.id
+         WHERE pr.enrollment_id = $1 
+         AND m.course_id = $2
+         AND pr.score IS NOT NULL
+         ORDER BY pr.score DESC`,
+				[enrollment.id, courseId]
+			);
+
+			// Calculate engagement metrics
+			const engagementQuery = await pool.query(
+				`SELECT 
+            COUNT(pr.id) as total_interactions,
+            MAX(pr.updated_at) as last_interaction,
+            EXTRACT(EPOCH FROM (MAX(pr.updated_at) - MIN(pr.created_at)))/86400 as days_active
+         FROM progress_records pr
+         WHERE pr.enrollment_id = $1`,
+				[enrollment.id]
+			);
+
+			return {
+				enrollment,
+				detailedProgress,
+				timeDistribution: timeDistributionQuery.rows,
+				scoreDistribution: scoreDistributionQuery.rows,
+				engagement: engagementQuery.rows[0],
+			};
+		} catch (error) {
+			console.error("Error in getCourseEnrollmentAnalytics:", error);
+			throw new Error(
+				`Failed to fetch course enrollment analytics: ${error.message}`
+			);
+		}
+	}
 }
 
 export default Enrollment;

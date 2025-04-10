@@ -29,7 +29,7 @@ class AuthService {
 		const roles = await Auth.getUserRoles(user.id);
 
 		// Generate tokens
-		const accessToken = this.generateAccessToken(user.id);
+		const accessToken = await this.generateAccessToken(user.id, user, roles);
 		const refreshToken = this.generateRefreshToken(user.id);
 
 		// Store refresh token
@@ -64,10 +64,12 @@ class AuthService {
 				throw new Error("User not found");
 			}
 
-			// Generate new access token
-			const accessToken = this.generateAccessToken(decoded.userId);
+			const roles = await Auth.getUserRoles(decoded.userId);
 
-			return { accessToken, user };
+			// Generate new access token with roles
+			const accessToken = this.generateAccessToken(decoded.userId, user, roles);
+
+			return { accessToken, user: { ...user, roles } };
 		} catch (error) {
 			throw new Error("Invalid refresh token");
 		}
@@ -161,10 +163,46 @@ class AuthService {
 		return regex.test(password);
 	}
 
-	static generateAccessToken(userId) {
-		return jwt.sign({ userId }, process.env.ACCESS_TOKEN_SECRET, {
-			expiresIn: "15m",
-		});
+	static generateAccessToken(userId, user = null, roles = null) {
+		// If user and roles aren't provided, we'll need to fetch them
+		// This makes the function more flexible
+		const fetchData = async () => {
+			if (!user) {
+				user = await Auth.getUserById(userId);
+			}
+			if (!roles) {
+				roles = await Auth.getUserRoles(userId);
+			}
+
+			// Create a token payload with all necessary information
+			const payload = {
+				userId,
+				email: user.email,
+				is_system_admin: user.is_system_admin,
+				roles: roles,
+			};
+
+			return jwt.sign(payload, process.env.ACCESS_TOKEN_SECRET, {
+				expiresIn: "15m", // or whatever expiration time you use
+			});
+		};
+
+		// If we already have user and roles, create token immediately
+		if (user && roles) {
+			const payload = {
+				userId,
+				email: user.email,
+				is_system_admin: user.is_system_admin,
+				roles: roles,
+			};
+
+			return jwt.sign(payload, process.env.ACCESS_TOKEN_SECRET, {
+				expiresIn: "15m",
+			});
+		}
+
+		// Otherwise, we need to fetch them first
+		return fetchData();
 	}
 
 	static generateRefreshToken(userId) {

@@ -24,7 +24,7 @@ const authenticate = async (req, res, next) => {
 		}
 
 		// Set the user ID in the request object
-		req.userId = result.userId;
+		req.user = { id: result.userId };
 
 		// Continue to the next middleware or route handler
 		next();
@@ -43,7 +43,7 @@ const hasRole = (entityType, role) => {
 	return async (req, res, next) => {
 		try {
 			// First authenticate the user
-			if (!req.userId) {
+			if (!req.user.id) {
 				return res.status(401).json({ error: "Authentication required" });
 			}
 
@@ -58,7 +58,7 @@ const hasRole = (entityType, role) => {
 			// Get user roles
 			const userRoles = await global.db.query(
 				"SELECT * FROM user_roles WHERE user_id = $1 AND entity_type = $2 AND entity_id = $3 AND role = $4 AND status = 'active'",
-				[req.userId, entityType, entityId, role]
+				[req.user.id, entityType, entityId, role]
 			);
 
 			if (userRoles.rows.length === 0) {
@@ -80,14 +80,14 @@ const hasRole = (entityType, role) => {
 const isSystemAdmin = async (req, res, next) => {
 	try {
 		// First authenticate the user
-		if (!req.userId) {
+		if (!req.user || !req.user.id) {
 			return res.status(401).json({ error: "Authentication required" });
 		}
 
 		// Check if user is a system admin
 		const userResult = await global.db.query(
 			"SELECT is_system_admin FROM users WHERE id = $1",
-			[req.userId]
+			[req.user.id]
 		);
 
 		if (userResult.rows.length === 0 || !userResult.rows[0].is_system_admin) {
@@ -108,7 +108,7 @@ const isSystemAdmin = async (req, res, next) => {
 const canAccessCourse = async (req, res, next) => {
 	try {
 		// First authenticate the user
-		if (!req.userId) {
+		if (!req.user || !req.user.id) {
 			return res.status(401).json({ error: "Authentication required" });
 		}
 
@@ -138,7 +138,7 @@ const canAccessCourse = async (req, res, next) => {
 		// Check if user is enrolled in the course
 		const enrollmentResult = await global.db.query(
 			"SELECT id FROM enrollments WHERE user_id = $1 AND course_id = $2 AND status != 'dropped'",
-			[req.userId, courseId]
+			[req.user.id, courseId]
 		);
 
 		if (enrollmentResult.rows.length > 0) {
@@ -148,7 +148,7 @@ const canAccessCourse = async (req, res, next) => {
 		// Check if user is an admin/instructor of the entity that owns the course
 		const roleResult = await global.db.query(
 			"SELECT id FROM user_roles WHERE user_id = $1 AND entity_type = $2 AND entity_id = $3 AND role IN ('admin', 'instructor') AND status = 'active'",
-			[req.userId, course.owner_type, course.owner_id]
+			[req.user.id, course.owner_type, course.owner_id]
 		);
 
 		if (roleResult.rows.length > 0) {
@@ -158,7 +158,7 @@ const canAccessCourse = async (req, res, next) => {
 		// Check if user is a system admin
 		const adminResult = await global.db.query(
 			"SELECT is_system_admin FROM users WHERE id = $1",
-			[req.userId]
+			[req.user.id]
 		);
 
 		if (adminResult.rows.length > 0 && adminResult.rows[0].is_system_admin) {
@@ -179,7 +179,7 @@ const canAccessCourse = async (req, res, next) => {
 const canEditCourse = async (req, res, next) => {
 	try {
 		// First authenticate the user
-		if (!req.userId) {
+		if (!req.user || !req.user.id) {
 			return res.status(401).json({ error: "Authentication required" });
 		}
 
@@ -202,14 +202,14 @@ const canEditCourse = async (req, res, next) => {
 		const course = courseResult.rows[0];
 
 		// If user is the owner (for user-owned courses)
-		if (course.owner_type === "user" && course.owner_id === req.userId) {
+		if (course.owner_type === "user" && course.owner_id === req.user.id) {
 			return next();
 		}
 
 		// Check if user is an admin/instructor of the entity that owns the course
 		const roleResult = await global.db.query(
 			"SELECT id FROM user_roles WHERE user_id = $1 AND entity_type = $2 AND entity_id = $3 AND role IN ('admin', 'instructor') AND status = 'active'",
-			[req.userId, course.owner_type, course.owner_id]
+			[req.user.id, course.owner_type, course.owner_id]
 		);
 
 		if (roleResult.rows.length > 0) {
@@ -219,7 +219,7 @@ const canEditCourse = async (req, res, next) => {
 		// Check if user is a system admin
 		const adminResult = await global.db.query(
 			"SELECT is_system_admin FROM users WHERE id = $1",
-			[req.userId]
+			[req.user.id]
 		);
 
 		if (adminResult.rows.length > 0 && adminResult.rows[0].is_system_admin) {
