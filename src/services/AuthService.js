@@ -183,7 +183,7 @@ class AuthService {
 			};
 
 			return jwt.sign(payload, process.env.ACCESS_TOKEN_SECRET, {
-				expiresIn: "15m", // or whatever expiration time you use
+				expiresIn: "7d", // or whatever expiration time you use
 			});
 		};
 
@@ -197,7 +197,7 @@ class AuthService {
 			};
 
 			return jwt.sign(payload, process.env.ACCESS_TOKEN_SECRET, {
-				expiresIn: "15m",
+				expiresIn: "7d",
 			});
 		}
 
