@@ -4,7 +4,7 @@ class EnrollmentController {
 	static async enrollUser(req, res) {
 		try {
 			const { courseId } = req.params;
-			const userId = req.user.id; // Assuming user ID is set by authentication middleware
+			const userId = req.user.id;
 
 			const enrollment = await EnrollmentService.enrollUser(userId, courseId);
 

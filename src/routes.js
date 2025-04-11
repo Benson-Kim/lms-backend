@@ -10,6 +10,8 @@ import CourseController from "./controllers/courseController.js";
 import express from "express";
 
 import AuthMiddleware from "./middleware/AuthMiddleware.js";
+import DashboardService from "./services/learners/dashboardService.js";
+import learnerDashboardController from "./controllers/learners/learnerDashboardController.js";
 
 const { authenticate, isSystemAdmin, hasRole, canAccessCourse, canEditCourse } =
 	AuthMiddleware;
@@ -309,6 +311,12 @@ router.get(
 	"/user/enrollments",
 	authenticate,
 	EnrollmentController.getUserEnrollments
+);
+
+router.get(
+	"/user/dashboard",
+	authenticate,
+	learnerDashboardController.getDashboardData
 );
 
 router.post(

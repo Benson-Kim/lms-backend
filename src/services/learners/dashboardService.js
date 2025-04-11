@@ -1,4 +1,4 @@
-import Enrollment from "../models/enrollmentModel.js";
+import Enrollment from "../../models/enrollmentModel";
 
 class DashboardService {
 	// Fetch all enrolled courses with progress
