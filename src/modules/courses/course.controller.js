@@ -3,9 +3,6 @@ import CourseService from "./course.service.js";
 import ContentService from "../contents/content.service.js";
 import EnrollmentService from "../enrollments/enrollment.service.js";
 
-// import ContentService from "../../services/contentService.js";
-// import EnrollmentService from "../../services/enrollmentService.js";
-
 const {
 	searchCourses,
 	getUserCourses,
