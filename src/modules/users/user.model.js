@@ -1,5 +1,5 @@
-import userCache from "../../utils/userCache.js";
-import pool from "../config/database.js";
+import userCache from "../../../utils/userCache.js";
+import pool from "../../config/database.js";
 
 class User {
 	static async findById(id) {

@@ -5,9 +5,9 @@ import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import compression from "compression";
-import router from "./routes.js";
 import pool from "./config/database.js";
 import redisCache from "../utils/redisCache.js";
+import router from "./modules/index.js";
 
 const app = express();
 

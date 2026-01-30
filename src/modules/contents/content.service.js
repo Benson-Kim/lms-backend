@@ -1,6 +1,6 @@
 import Content from "../models/contentModel.js";
 import CourseService from "./courseService.js";
-import pool from "../config/database.js";
+import pool from "../../config/database.js";
 
 class ContentService {
 	static async createContentItem(moduleId, contentData, userId) {

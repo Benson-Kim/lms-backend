@@ -1,6 +1,6 @@
-import pool from "../config/database.js";
+import pool from "../../config/database.js";
 
-import courseCache from "../../utils/courseCache.js";
+import courseCache from "../../../utils/courseCache.js";
 
 class Course {
 	static async findById(id) {
