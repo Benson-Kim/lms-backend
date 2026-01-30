@@ -30,10 +30,10 @@ async function seedDatabase() {
        ON CONFLICT (email) DO UPDATE
        SET is_system_admin = true
        RETURNING id, email`,
-			["admin@example.com", hashedPassword, "System", "Admin", true]
+			["admin@example.com", hashedPassword, "System", "Admin", true],
 		);
 
-		const adminId = adminResult.rows[0].id;
+		// const adminId = adminResult.rows[0].id;
 		console.log(`System admin created: ${adminResult.rows[0].email}`);
 
 		// Create test individual learner
@@ -43,11 +43,11 @@ async function seedDatabase() {
        ON CONFLICT (email) DO UPDATE
        SET is_individual_learner = true
        RETURNING id, email`,
-			["learner@example.com", hashedPassword, "Individual", "Learner", true]
+			["learner@example.com", hashedPassword, "Individual", "Learner", true],
 		);
 
 		console.log(
-			`Individual learner created: ${individualLearnerResult.rows[0].email}`
+			`Individual learner created: ${individualLearnerResult.rows[0].email}`,
 		);
 
 		// Create test clients
@@ -94,7 +94,7 @@ async function seedDatabase() {
 					clientData.logo_url,
 					clientData.primary_color,
 					clientData.secondary_color,
-				]
+				],
 			);
 
 			const clientId = clientResult.rows[0].id;
@@ -119,7 +119,7 @@ async function seedDatabase() {
 					`INSERT INTO departments (client_id, name)
            VALUES ($1, $2)
            RETURNING id, name`,
-					[clientId, dept.name]
+					[clientId, dept.name],
 				);
 
 				const deptId = deptResult.rows[0].id;
@@ -145,11 +145,11 @@ async function seedDatabase() {
 						`INSERT INTO groups (client_id, department_id, name)
              VALUES ($1, $2, $3)
              RETURNING id, name`,
-						[clientId, deptId, group.name]
+						[clientId, deptId, group.name],
 					);
 
 					console.log(
-						`Group created: ${groupResult.rows[0].name} in ${deptName}`
+						`Group created: ${groupResult.rows[0].name} in ${deptName}`,
 					);
 				}
 			}
@@ -246,7 +246,7 @@ async function seedDatabase() {
          VALUES ($1, $2, $3, $4)
          ON CONFLICT (email) DO NOTHING
          RETURNING id`,
-				[user.email, hashedPassword, user.firstName, user.lastName]
+				[user.email, hashedPassword, user.firstName, user.lastName],
 			);
 
 			if (userResult.rows.length > 0) {
@@ -256,7 +256,7 @@ async function seedDatabase() {
 				// Get the department ID
 				const departmentResult = await client.query(
 					`SELECT id FROM departments WHERE client_id = $1 AND name = $2`,
-					[clientIds[user.client], user.department]
+					[clientIds[user.client], user.department],
 				);
 
 				if (departmentResult.rows.length > 0) {
@@ -266,10 +266,10 @@ async function seedDatabase() {
 					await client.query(
 						`INSERT INTO user_roles (user_id, entity_type, entity_id, role)
              VALUES ($1, $2, $3, $4)`,
-						[userId, "department", departmentId, user.role]
+						[userId, "department", departmentId, user.role],
 					);
 					console.log(
-						`Role assigned: ${user.role} for ${user.email} in ${user.department}`
+						`Role assigned: ${user.role} for ${user.email} in ${user.department}`,
 					);
 				}
 			}
@@ -313,7 +313,7 @@ async function seedDatabase() {
 					course.thumbnail_url,
 					course.owner_type,
 					course.is_public,
-				]
+				],
 			);
 
 			const courseId = courseResult.rows[0].id;
@@ -363,7 +363,7 @@ async function seedDatabase() {
 					course.owner_type,
 					clientIds[course.owner],
 					course.is_public,
-				]
+				],
 			);
 
 			const courseId = courseResult.rows[0].id;
@@ -400,7 +400,7 @@ async function seedDatabase() {
 			// Get student ID
 			const studentResult = await client.query(
 				`SELECT id FROM users WHERE email = $1`,
-				[enrollment.studentEmail]
+				[enrollment.studentEmail],
 			);
 
 			if (studentResult.rows.length > 0) {
@@ -409,7 +409,7 @@ async function seedDatabase() {
 				// Get course ID
 				const courseResult = await client.query(
 					`SELECT id FROM courses WHERE title = $1`,
-					[enrollment.courseTitle]
+					[enrollment.courseTitle],
 				);
 
 				if (courseResult.rows.length > 0) {
@@ -420,11 +420,11 @@ async function seedDatabase() {
 						`INSERT INTO enrollments (user_id, course_id, status, progress)
              VALUES ($1, $2, $3, $4)
              RETURNING id`,
-						[studentId, courseId, "enrolled", 0.0]
+						[studentId, courseId, "enrolled", 0.0],
 					);
 
 					console.log(
-						`Student ${enrollment.studentEmail} enrolled in ${enrollment.courseTitle}`
+						`Student ${enrollment.studentEmail} enrolled in ${enrollment.courseTitle}`,
 					);
 
 					// Add some progress for first student
@@ -439,7 +439,7 @@ async function seedDatabase() {
                WHERE m.course_id = $1
                ORDER BY m.position, ci.position
                LIMIT 3`,
-							[courseId]
+							[courseId],
 						);
 
 						if (contentResult.rows.length > 0) {
@@ -453,7 +453,7 @@ async function seedDatabase() {
 									"completed",
 									450,
 									"NOW()",
-								]
+								],
 							);
 
 							// Start second item
@@ -461,18 +461,18 @@ async function seedDatabase() {
 								await client.query(
 									`INSERT INTO progress_records (enrollment_id, content_item_id, status, time_spent)
                    VALUES ($1, $2, $3, $4)`,
-									[enrollmentId, contentResult.rows[1].id, "in_progress", 200]
+									[enrollmentId, contentResult.rows[1].id, "in_progress", 200],
 								);
 							}
 
 							// Update overall progress
 							await client.query(
 								`UPDATE enrollments SET progress = $1 WHERE id = $2`,
-								[0.33, enrollmentId]
+								[0.33, enrollmentId],
 							);
 
 							console.log(
-								`Added progress records for ${enrollment.studentEmail}`
+								`Added progress records for ${enrollment.studentEmail}`,
 							);
 						}
 					}
@@ -497,7 +497,7 @@ async function seedDatabase() {
 		for (const token of tokens) {
 			const userResult = await client.query(
 				`SELECT id FROM users WHERE email = $1`,
-				[token.email]
+				[token.email],
 			);
 
 			if (userResult.rows.length > 0) {
@@ -506,7 +506,7 @@ async function seedDatabase() {
 				await client.query(
 					`INSERT INTO refresh_tokens (user_id, token, expires_at)
            VALUES ($1, $2, NOW() + INTERVAL '${token.days} days')`,
-					[userId, token.token]
+					[userId, token.token],
 				);
 
 				console.log(`Added refresh token for ${token.email}`);
@@ -516,14 +516,14 @@ async function seedDatabase() {
 		// Add a password reset token
 		const resetUser = await client.query(
 			`SELECT id FROM users WHERE email = $1`,
-			["learner@example.com"]
+			["learner@example.com"],
 		);
 
 		if (resetUser.rows.length > 0) {
 			await client.query(
 				`INSERT INTO password_reset_tokens (user_id, token, expires_at)
          VALUES ($1, $2, NOW() + INTERVAL '24 hours')`,
-				[resetUser.rows[0].id, "reset-token-" + uuidv4().substring(0, 8)]
+				[resetUser.rows[0].id, "reset-token-" + uuidv4().substring(0, 8)],
 			);
 
 			console.log("Added password reset token for learner@example.com");
@@ -563,7 +563,7 @@ async function seedDatabase() {
 			await client.query(
 				`INSERT INTO login_attempts (email, ip_address, success)
          VALUES ($1, $2, $3)`,
-				[attempt.email, attempt.ipAddress, attempt.success]
+				[attempt.email, attempt.ipAddress, attempt.success],
 			);
 		}
 
@@ -590,12 +590,13 @@ async function createModulesAndContent(client, courseId) {
 		{ title: "Advanced Topics", position: 3 },
 	];
 
+	// eslint-disable-next-line @next/next/no-assign-module-variable
 	for (const module of modules) {
 		const moduleResult = await client.query(
 			`INSERT INTO modules (course_id, title, position)
        VALUES ($1, $2, $3)
        RETURNING id`,
-			[courseId, module.title, module.position]
+			[courseId, module.title, module.position],
 		);
 
 		const moduleId = moduleResult.rows[0].id;
@@ -661,7 +662,7 @@ async function createModulesAndContent(client, courseId) {
 			await client.query(
 				`INSERT INTO content_items (module_id, title, content_type, content, position)
          VALUES ($1, $2, $3, $4, $5)`,
-				[moduleId, item.title, item.contentType, item.content, item.position]
+				[moduleId, item.title, item.contentType, item.content, item.position],
 			);
 			console.log(`Content item created: ${item.title}`);
 		}
